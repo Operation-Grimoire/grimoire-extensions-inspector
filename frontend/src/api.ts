@@ -145,8 +145,8 @@ export const api = {
       parse<FilterDto[]>(r),
     ),
   novel: (id: number, url: string) => post<Novel>(`/api/sources/${id}/novel`, { url }),
-  chapters: (id: number, url: string, page?: number) =>
-    post<Chapter[]>(`/api/sources/${id}/chapters`, { url, page }),
+  chapters: (id: number, url: string, page?: number, concurrency?: number) =>
+    post<Chapter[]>(`/api/sources/${id}/chapters`, { url, page, concurrency }),
   pages: (id: number, url: string) => post<Page[]>(`/api/sources/${id}/pages`, { url }),
   prefs: (id: number) => fetch(`/api/sources/${id}/prefs`).then((r) => parse<PrefDto[]>(r)),
   setPrefs: (id: number, values: Record<string, string>) =>
@@ -164,7 +164,8 @@ export const api = {
     ),
   ua: () => fetch("/api/ua").then((r) => parse<UaDto>(r)),
   setUa: (userAgent: string) => post<UaDto>("/api/ua", { userAgent }),
-  run: (source?: string) => post<RunReport>("/api/run", source ? { source } : {}),
+  run: (source?: string, concurrency?: number) =>
+    post<RunReport>("/api/run", { ...(source ? { source } : {}), concurrency }),
 };
 
 function post<T>(path: string, payload: unknown): Promise<T> {

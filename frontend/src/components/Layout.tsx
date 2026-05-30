@@ -8,6 +8,8 @@ import {
   Button,
   Group,
   NavLink,
+  NumberInput,
+  Popover,
   ScrollArea,
   Text,
   TextInput,
@@ -15,6 +17,7 @@ import {
 import { SourceMeta } from "../api";
 import { ErrorBanner } from "../ui";
 import { useSources } from "../sources";
+import { CHAPTER_CONCURRENCY_MAX, useSettings } from "../settings";
 
 const TAB_LABELS: Record<string, string> = {
   popular: "Popular",
@@ -42,6 +45,7 @@ export function Layout() {
           </Text>
           <Crumbs sources={list} />
           <Box style={{ flex: 1 }} />
+          <SettingsMenu />
           <Button component={Link} to="/run" size="xs">
             Run full suite
           </Button>
@@ -97,6 +101,41 @@ function Sidebar({ sources }: { sources: SourceMeta[] }) {
         ))}
       </ScrollArea>
     </>
+  );
+}
+
+function SettingsMenu() {
+  const [settings, set] = useSettings();
+  const setConcurrency = (v: number | string) => {
+    const n = typeof v === "number" ? v : Number(v);
+    if (!Number.isFinite(n)) return;
+    const clamped = Math.min(CHAPTER_CONCURRENCY_MAX, Math.max(1, Math.round(n)));
+    set((s) => ({ ...s, chapterConcurrency: clamped }));
+  };
+  return (
+    <Popover width={300} position="bottom-end" withArrow shadow="md">
+      <Popover.Target>
+        <Button size="xs" variant="default">
+          ⚙ Settings
+        </Button>
+      </Popover.Target>
+      <Popover.Dropdown>
+        <Text fw={600} size="sm" mb="xs">
+          Settings
+        </Text>
+        <NumberInput
+          label="Parallel chapter-page fetches"
+          description="Load paginated chapter lists faster (1 = sequential)"
+          min={1}
+          max={CHAPTER_CONCURRENCY_MAX}
+          value={settings.chapterConcurrency}
+          onChange={setConcurrency}
+        />
+        <Text size="xs" c="dimmed" mt="xs">
+          Saved in this browser.
+        </Text>
+      </Popover.Dropdown>
+    </Popover>
   );
 }
 

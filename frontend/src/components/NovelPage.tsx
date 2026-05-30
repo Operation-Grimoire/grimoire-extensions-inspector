@@ -15,6 +15,7 @@ import {
 } from "@mantine/core";
 import { api, Chapter, imgUrl, Novel } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
+import { useSettings } from "../settings";
 import { useCurrentSource } from "./SourceLayout";
 
 export function NovelPage() {
@@ -178,7 +179,11 @@ function Mono({ children }: { children: React.ReactNode }) {
 
 function Chapters({ url, onRead }: { url: string; onRead: (c: Chapter) => void }) {
   const source = useCurrentSource();
-  const state = useAsync<Chapter[]>(() => api.chapters(source.id, url), [source.id, url]);
+  const [settings] = useSettings();
+  const state = useAsync<Chapter[]>(
+    () => api.chapters(source.id, url, undefined, settings.chapterConcurrency),
+    [source.id, url, settings.chapterConcurrency],
+  );
   if (state.loading) return <Spinner label="loading chapters…" />;
   if (state.error) return <ErrorBanner msg={state.error} />;
   const list = state.data ?? [];

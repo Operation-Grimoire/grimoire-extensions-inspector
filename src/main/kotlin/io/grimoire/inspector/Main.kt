@@ -46,6 +46,7 @@ private class RunCmd : CliktCommand(name = "run") {
     private val lang by option("--lang")
     private val query by option("--query").default("the")
     private val timeout by option("--timeout", help = "per-call timeout, seconds").int().default(30)
+    private val concurrency by option("--concurrency", help = "parallel chapter-page fetches (1 = sequential)").int().default(1)
     private val offline by option("--offline").flag()
     private val asJson by option("--json").flag()
     private val failOn by option("--fail-on").choice("warn", "error", "never").default("error")
@@ -64,7 +65,7 @@ private class RunCmd : CliktCommand(name = "run") {
             throw ProgramResult(2)
         }
 
-        val report = runBlocking { Inspector(query, timeout * 1000L, offline).run(sources) }
+        val report = runBlocking { Inspector(query, timeout * 1000L, offline, concurrency).run(sources) }
         if (asJson) echo(json.encodeToString(report)) else printHuman(report)
 
         val fail = when (failOn) {

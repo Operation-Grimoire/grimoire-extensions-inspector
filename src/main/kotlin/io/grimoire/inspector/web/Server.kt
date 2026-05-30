@@ -83,7 +83,7 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                     post("/chapters") {
                         val o = resolve(byId) ?: return@post
                         val req = call.receive<UrlReq>()
-                        call.guarded { call.respond(o.chapters(req.url, req.page).map { it.toDto() }) }
+                        call.guarded { call.respond(o.chapters(req.url, req.page, req.concurrency ?: 1).map { it.toDto() }) }
                     }
                     post("/pages") {
                         val o = resolve(byId) ?: return@post
@@ -143,7 +143,7 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                     var sel = byId.values.toList()
                     req.source?.let { s -> sel = sel.filter { it.id.toString() == s || it.name.equals(s, true) || it.name.contains(s, true) } }
                     req.lang?.let { l -> sel = sel.filter { it.lang.equals(l, true) } }
-                    val report = Inspector(req.query ?: "the", offline = req.offline).run(sel.sortedBy { it.id })
+                    val report = Inspector(req.query ?: "the", offline = req.offline, chapterConcurrency = req.concurrency ?: 1).run(sel.sortedBy { it.id })
                     call.respond(report)
                 }
             }

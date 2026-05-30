@@ -99,7 +99,7 @@ fun SourcePreference.toDto(): PrefDto = when (this) {
 data class SearchReq(val query: String, val page: Int = 1)
 
 @Serializable
-data class UrlReq(val url: String, val page: Int? = null)
+data class UrlReq(val url: String, val page: Int? = null, val concurrency: Int? = null)
 
 @Serializable
 data class PrefsReq(val values: Map<String, String> = emptyMap())
@@ -120,6 +120,7 @@ data class RunReq(
     val lang: String? = null,
     val query: String? = null,
     val offline: Boolean = false,
+    val concurrency: Int? = null,
 )
 
 @Serializable

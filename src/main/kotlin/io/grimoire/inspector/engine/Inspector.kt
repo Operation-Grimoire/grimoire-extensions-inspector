@@ -21,6 +21,7 @@ class Inspector(
     private val query: String = "the",
     private val timeoutMs: Long = 30_000,
     private val offline: Boolean = false,
+    private val chapterConcurrency: Int = 1,
 ) {
 
     suspend fun run(sources: List<DiscoveredSource>): RunReport {
@@ -73,7 +74,7 @@ class Inspector(
 
         stages += stage("chapters", target = (detailed ?: firstNovel)?.url) {
             val n = detailed ?: firstNovel ?: return@stage skipped("chapters", "no novel to query")
-            val list = ops.chapters(n.url)
+            val list = ops.chapters(n.url, concurrency = chapterConcurrency)
             firstChapter = list.firstOrNull { !it.locked } ?: list.firstOrNull()
             StageOutcome(Checks.chapters(list), mapOf("items" to list.size))
         }

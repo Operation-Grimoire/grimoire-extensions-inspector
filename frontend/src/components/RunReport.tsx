@@ -2,6 +2,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Accordion, Anchor, Badge, Button, Card, Code, Group, Stack, Text } from "@mantine/core";
 import { api, Diagnostic, RunReport as Report, SourceReport, StageResult } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
+import { useSettings } from "../settings";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "green",
@@ -14,7 +15,11 @@ const STATUS_COLOR: Record<string, string> = {
 export function RunReport() {
   const [sp] = useSearchParams();
   const sourceFilter = sp.get("source") ?? undefined;
-  const state = useAsync<Report>(() => api.run(sourceFilter), [sourceFilter]);
+  const [settings] = useSettings();
+  const state = useAsync<Report>(
+    () => api.run(sourceFilter, settings.chapterConcurrency),
+    [sourceFilter, settings.chapterConcurrency],
+  );
 
   return (
     <Stack gap="md">

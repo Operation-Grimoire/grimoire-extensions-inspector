@@ -14,6 +14,9 @@ import io.grimoire.api.source.PaginatedSource
 import io.grimoire.api.source.SourcePreference
 import io.grimoire.api.source.WebViewLoginSource
 import io.grimoire.inspector.DiscoveredSource
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import okhttp3.OkHttpClient
 
 /**
@@ -36,30 +39,39 @@ class SourceOps(val ds: DiscoveredSource) {
 
     suspend fun details(url: String): Novel = source.getNovelDetails(stubNovel(url))
 
-    suspend fun chapters(url: String, page: Int? = null): List<Chapter> {
+    suspend fun chapters(url: String, page: Int? = null, concurrency: Int = 1): List<Chapter> {
         val novel = stubNovel(url)
         val paged = source as? PaginatedSource
         // Explicit page → that single page. No page → the full list: a paginated
         // source's getChapterList(novel) only returns page 1, so walk pages until
         // one is empty or stops yielding new URLs (overflow guard), accumulating.
+        // concurrency>1 fetches pages in parallel batches (faster for long lists).
         return when {
             page != null && paged != null -> paged.getChapterList(novel, page)
-            paged != null -> {
-                val all = mutableListOf<Chapter>()
-                val seen = HashSet<String>()
-                var p = 1
-                while (p <= MAX_CHAPTER_PAGES) {
-                    val batch = paged.getChapterList(novel, p)
-                    if (batch.isEmpty()) break
-                    val newCount = batch.count { seen.add(it.url) } // count{}: no short-circuit
-                    all += batch
-                    if (newCount == 0) break // page repeated only already-seen URLs → stop
-                    p++
-                }
-                all
-            }
+            paged != null -> allChapterPages(paged, novel, concurrency.coerceIn(1, MAX_CHAPTER_CONCURRENCY))
             else -> source.getChapterList(novel)
         }
+    }
+
+    private suspend fun allChapterPages(paged: PaginatedSource, novel: Novel, concurrency: Int): List<Chapter> {
+        val all = mutableListOf<Chapter>()
+        val seen = HashSet<String>()
+        var next = 1
+        while (next <= MAX_CHAPTER_PAGES) {
+            val pages = (next until (next + concurrency)).toList()
+            // Fetch this batch of pages concurrently, then consume them in order.
+            val batches = coroutineScope { pages.map { p -> async { paged.getChapterList(novel, p) } }.awaitAll() }
+            var stop = false
+            for (batch in batches) {
+                if (batch.isEmpty()) { stop = true; break }
+                val newCount = batch.count { seen.add(it.url) } // count{}: no short-circuit
+                all += batch
+                if (newCount == 0) { stop = true; break } // page repeated only already-seen URLs
+            }
+            if (stop) break
+            next += concurrency
+        }
+        return all
     }
 
     suspend fun pages(url: String): List<NovelPage> = source.getPageList(stubChapter(url))
@@ -106,5 +118,8 @@ class SourceOps(val ds: DiscoveredSource) {
         // Safety cap on chapter-page walking, so a source that never returns an
         // empty page can't loop forever.
         private const val MAX_CHAPTER_PAGES = 500
+
+        // Upper bound on parallel page fetches, to avoid hammering a source.
+        private const val MAX_CHAPTER_CONCURRENCY = 16
     }
 }
