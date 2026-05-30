@@ -11,6 +11,7 @@ import {
   NumberInput,
   Popover,
   ScrollArea,
+  Select,
   Text,
   TextInput,
 } from "@mantine/core";
@@ -64,20 +65,43 @@ export function Layout() {
   );
 }
 
+type Sort = "name" | "lang" | "id";
+
+const SORTERS: Record<Sort, (a: SourceMeta, b: SourceMeta) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  lang: (a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name),
+  id: (a, b) => a.id - b.id,
+};
+
 function Sidebar({ sources }: { sources: SourceMeta[] }) {
   const [filter, setFilter] = useState("");
+  const [sort, setSort] = useState<Sort>("name");
   const { pathname } = useLocation();
-  const filtered = sources.filter(
-    (s) => !filter || s.name.toLowerCase().includes(filter.toLowerCase()) || s.lang.includes(filter),
-  );
+  const filtered = sources
+    .filter(
+      (s) => !filter || s.name.toLowerCase().includes(filter.toLowerCase()) || s.lang.includes(filter),
+    )
+    .sort(SORTERS[sort]);
   return (
     <>
       <TextInput
         placeholder="filter sources…"
         value={filter}
         onChange={(e) => setFilter(e.currentTarget.value)}
-        mb="sm"
+        mb="xs"
         size="xs"
+      />
+      <Select
+        size="xs"
+        mb="sm"
+        value={sort}
+        onChange={(v) => setSort((v as Sort) ?? "name")}
+        allowDeselect={false}
+        data={[
+          { value: "name", label: "Sort: Name (A→Z)" },
+          { value: "lang", label: "Sort: Language" },
+          { value: "id", label: "Sort: ID" },
+        ]}
       />
       <ScrollArea type="hover" style={{ flex: 1 }}>
         {filtered.map((s) => (
