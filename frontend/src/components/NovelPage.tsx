@@ -7,6 +7,7 @@ import {
   Code,
   Group,
   Image,
+  Spoiler,
   Stack,
   Table,
   Text,
@@ -121,9 +122,11 @@ function Detail({ novel }: { novel: Novel }) {
           Description
         </Text>
         {novel.description?.trim() ? (
-          <Text size="sm" maw={760} style={{ whiteSpace: "pre-wrap" }}>
-            {novel.description}
-          </Text>
+          <Spoiler maw={760} maxHeight={72} showLabel="Show more" hideLabel="Show less">
+            <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+              {novel.description}
+            </Text>
+          </Spoiler>
         ) : (
           <Empty />
         )}
