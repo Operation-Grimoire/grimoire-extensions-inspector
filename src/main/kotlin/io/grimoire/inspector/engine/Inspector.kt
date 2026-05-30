@@ -10,6 +10,9 @@ import io.grimoire.api.source.MultiLanguageSource
 import io.grimoire.api.source.WebViewLoginSource
 import io.grimoire.inspector.DiscoveredSource
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeout
 import java.time.Instant
 
@@ -127,6 +130,19 @@ class Inspector(
             StageOutcome(diags, mapOf("items" to list.size))
         }
 
+        if (ops.source is MultiLanguageSource && ops.languages.isNotEmpty()) {
+            stages += stage("languages") {
+                val langs = ops.languages
+                val empties = checkLanguages(ops, langs)
+                val diags = if (empties.isEmpty()) {
+                    listOf(Diagnostic("languages", Severity.INFO, "LANGUAGES_OK", "all ${langs.size} languages return popular novels", langs.size))
+                } else {
+                    listOf(Diagnostic("languages", Severity.WARN, "LANGUAGE_NO_RESULTS", "${empties.size}/${langs.size} languages returned 0 popular novels", empties.size, empties))
+                }
+                StageOutcome(diags, mapOf("languages" to langs.size))
+            }
+        }
+
         // filters are computed without network unless dynamic.
         stages += stage("filters", network = false) {
             val base = ops.filterList()
@@ -224,6 +240,19 @@ class Inspector(
         else listOf(Diagnostic(stage, Severity.WARN, "IMAGE_LOAD_FAILED", "${broken.size}/${targets.size} sampled images failed to load", broken.size, broken))
     }
 
+    /** Probe each available language's popular page (on fresh instances, in
+     *  capped parallel batches) and return the languages that yielded 0 novels.
+     *  Languages that errored (-1, e.g. Cloudflare) are not flagged as empty. */
+    private suspend fun checkLanguages(ops: SourceOps, langs: List<String>): List<String> = coroutineScope {
+        val results = mutableListOf<Pair<String, Int>>()
+        for (batch in langs.chunked(LANG_CONCURRENCY)) {
+            results += batch.map { lang ->
+                async { lang to runCatching { ops.popularForLanguage(lang) }.getOrDefault(-1) }
+            }.awaitAll()
+        }
+        results.filter { it.second == 0 }.map { it.first }
+    }
+
     /** Total selectable-option count across a filter list (Group children +
      *  Select values), used to tell whether fetchFilterOptions actually added
      *  anything regardless of which filter kind carries the dynamic options. */
@@ -261,5 +290,8 @@ class Inspector(
     private companion object {
         // Images probed per view, to bound the suite's network cost.
         const val IMAGE_SAMPLE = 3
+
+        // Parallel per-language popular probes in the languages stage.
+        const val LANG_CONCURRENCY = 6
     }
 }

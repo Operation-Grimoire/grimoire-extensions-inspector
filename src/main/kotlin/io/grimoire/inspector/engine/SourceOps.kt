@@ -50,6 +50,16 @@ class SourceOps(val ds: DiscoveredSource) {
     /** Restrict browse/search to these languages (empty = no filter, all). */
     fun setLanguages(langs: Set<String>) = multiLang?.setEnabledLanguages(langs) ?: Unit
 
+    /** Popular count for a single language, on a FRESH instance so the per-
+     *  language probes don't race the shared source's enabled-language state.
+     *  Returns -1 if the source can't be exercised for that language. */
+    suspend fun popularForLanguage(lang: String, page: Int = 1): Int {
+        val fresh = runCatching { source.javaClass.getDeclaredConstructor().newInstance() }.getOrNull()
+        (fresh as? MultiLanguageSource)?.setEnabledLanguages(setOf(lang))
+        val cat = fresh as? CatalogueSource ?: return -1
+        return cat.getPopularNovels(page).size
+    }
+
     suspend fun popular(page: Int): List<Novel> = cat().getPopularNovels(page)
     suspend fun latest(page: Int): List<Novel> = cat().getLatestUpdates(page)
     suspend fun search(query: String, page: Int, filters: List<Filter<*>> = emptyList()): List<Novel> =
