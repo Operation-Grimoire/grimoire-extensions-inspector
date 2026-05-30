@@ -27,53 +27,52 @@ runs them live.
 Cloudflare JS challenges can't be solved headlessly, so they're reported as a
 `CLOUDFLARE_BLOCKED` warning rather than crashing.
 
-## Layout expected on disk
+## Which extensions to test
 
-The sibling Grimoire repos must be checked out next to this one (override with
-`-P` flags otherwise):
-
-```
-<parent>/
-  grimoire-extensions-inspector/   (this repo)
-  grimoire-extensions-api/         -PgrimoireApiDir=…
-  grimoire-extensions/             -PgrimoireExtDir=…
-  grimoire-extensions-x/           optional: -PgrimoireIncludeX=true -PgrimoireExtXDir=…
-```
+You pass the extensions repo path **every run** with `-Pext=<path>` — it is not
+assumed to live anywhere in particular. The API and `lib/` default to next-to /
+inside that path; override with `-Papi` / `-Plib` if needed. Point `-Pext` at
+any repo of the same `src/{lang}/{name}` shape (the main repo, a fork, or the
+private R18 repo). To avoid retyping, set `grimoireExtDir=…` in
+`gradle.properties` or `~/.gradle/gradle.properties`.
 
 ## Usage
 
 ### CLI
 
 ```bash
+EXT=/path/to/grimoire-extensions
+
 # list discovered sources (+ capabilities)
-./gradlew -q run --args="list"
-./gradlew -q run --args="list --json"
+./gradlew -q run -Pext=$EXT --args="list"
+./gradlew -q run -Pext=$EXT --args="list --json"
 
 # run the full suite (live network), JSON for agents
-./gradlew -q run --args="run --all --json"
+./gradlew -q run -Pext=$EXT --args="run --all --json"
 
 # one source, human output
-./gradlew -q run --args="run --source novelfull"
+./gradlew -q run -Pext=$EXT --args="run --source novelfull"
 
 # structural-only (no network): capabilities + filters + prefs
-./gradlew -q run --args="run --all --offline"
+./gradlew -q run -Pext=$EXT --args="run --all --offline"
 ```
 
 Flags: `--source <id|name>`, `--lang <code>`, `--query <q>`, `--timeout <sec>`,
 `--offline`, `--json`, `--fail-on warn|error|never`. Exit code is non-zero when
-there are ERROR diagnostics (CI-friendly).
+there are ERROR diagnostics (CI-friendly). Path overrides: `-Papi`, `-Plib`,
+`-PincludeX=true -Pextx=…`.
 
 For clean stdout (no Gradle noise), build a launcher once and call it directly:
 
 ```bash
-./gradlew installDist
+./gradlew installDist -Pext=$EXT
 ./build/install/inspector/bin/inspector run --all --json
 ```
 
 ### Web app
 
 ```bash
-./gradlew run --args="serve --port 8080"
+./gradlew run -Pext=$EXT --args="serve --port 8080"
 # open http://localhost:8080
 ```
 

@@ -8,12 +8,46 @@ repositories {
     mavenCentral()
 }
 
-// --- Where the sibling Grimoire checkouts live (override with -P… if needed) ---
-// Defaults assume all repos are checked out side-by-side in the same parent dir.
-val apiDir = (findProperty("grimoireApiDir") as String?) ?: "../grimoire-extensions-api"
-val extDir = (findProperty("grimoireExtDir") as String?) ?: "../grimoire-extensions"
-val xDir = (findProperty("grimoireExtXDir") as String?) ?: "../grimoire-extensions-x"
-val includeX = (findProperty("grimoireIncludeX") as String?)?.toBoolean() ?: false
+// --- Which extensions to compile & inspect (REQUIRED at run time) ------------
+// The extensions repo is not assumed to live anywhere in particular — you pass
+// its path each run:  -Pext=/path/to/grimoire-extensions  (alias: -PgrimoireExtDir).
+// API and lib default to next-to / inside the extensions repo; override if not:
+//   -Papi=/path/to/grimoire-extensions-api   (alias -PgrimoireApiDir)
+//   -Plib=/path/to/lib-root                  (alias -PgrimoireLibDir)
+// A value put in gradle.properties / ~/.gradle/gradle.properties also satisfies it.
+// Use providers.gradleProperty (not findProperty) so the short `ext` alias
+// doesn't collide with Gradle's built-in `ext` extra-properties extension.
+fun prop(vararg keys: String): String? =
+    keys.firstNotNullOfOrNull { providers.gradleProperty(it).orNull?.takeIf { v -> v.isNotBlank() } }
+
+val extDir = prop("ext", "grimoireExtDir")
+val apiDir = prop("api", "grimoireApiDir") ?: extDir?.let { "$it/../grimoire-extensions-api" }
+val libDir = prop("lib", "grimoireLibDir") ?: extDir?.let { "$it/lib" }
+val xDir = prop("extx", "grimoireExtXDir")
+val includeX = (prop("includeX", "grimoireIncludeX"))?.toBoolean() ?: false
+
+// Only the tasks that actually need the sources should hard-fail when the path
+// is missing — `gradlew tasks`, `help`, etc. still work without it.
+val sourceHungryTasks = setOf(
+    "run", "compileKotlin", "compileJava", "classes", "build", "assemble",
+    "jar", "installDist", "distZip", "distTar", "listSourceDirs",
+)
+val needsSources = gradle.startParameter.taskNames.any { it.substringAfterLast(':') in sourceHungryTasks }
+if (needsSources && extDir == null) {
+    throw GradleException(
+        """
+        No extensions path provided. Pass the extensions repo (or any sibling repo
+        of the same src/{lang}/{name} shape) when you run:
+
+          ./gradlew run -Pext=/path/to/grimoire-extensions --args="run --all --json"
+
+        Optional overrides (default next to / inside -Pext):
+          -Papi=/path/to/grimoire-extensions-api
+          -Plib=/path/to/lib-root
+          -PincludeX=true -Pextx=/path/to/grimoire-extensions-x
+        """.trimIndent(),
+    )
+}
 
 // Glob every extension's main source dir: $root/src/{lang}/{name}/src/main/java
 fun extensionSrcDirs(root: String): List<String> {
@@ -31,11 +65,11 @@ fun extensionSrcDirs(root: String): List<String> {
 
 // API + lib + every extension, compiled from source as plain JVM Kotlin against
 // our android-stubs (in src/main/kotlin). No Android SDK, no AGP, no emulator.
-val upstreamSrc: List<String> = buildList {
-    add(file("$apiDir/api/src/main/java").path)
-    add(file("$extDir/lib/src/main/java").path)
+val upstreamSrc: List<String> = if (extDir == null) emptyList() else buildList {
+    apiDir?.let { add(file("$it/api/src/main/java").path) }
+    libDir?.let { add(file("$it/src/main/java").path) }
     addAll(extensionSrcDirs(extDir))
-    if (includeX) addAll(extensionSrcDirs(xDir))
+    if (includeX && xDir != null) addAll(extensionSrcDirs(xDir))
 }
 
 sourceSets {
@@ -77,9 +111,11 @@ application {
 // Print which extensions got wired in, for sanity.
 tasks.register("listSourceDirs") {
     doLast {
-        println("API   : $apiDir")
         println("EXT   : $extDir")
-        println("includeX = $includeX")
+        println("API   : $apiDir")
+        println("LIB   : $libDir")
+        println("includeX = $includeX  (xDir=$xDir)")
+        if (upstreamSrc.isEmpty()) println("  (no sources — pass -Pext=…)")
         upstreamSrc.forEach { println("  src  $it") }
     }
 }

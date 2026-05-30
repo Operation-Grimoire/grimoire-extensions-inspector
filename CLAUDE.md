@@ -13,15 +13,28 @@ One shared engine, two front-ends:
 
 ## Running it
 
+**The extensions repo path is required every run** via `-Pext=<path>` (it is not
+assumed to be a sibling). API + lib default to next-to / inside that path; the
+build fails fast with guidance if `-Pext` is missing. You can instead set
+`grimoireExtDir=…` in `gradle.properties` / `~/.gradle/gradle.properties` to
+avoid retyping.
+
 ```bash
+EXT=/path/to/grimoire-extensions   # the repo you want to test
 # from the repo root; first run downloads Gradle 9.4.1 + deps
-./gradlew -q run --args="list"                       # discovered sources + capabilities
-./gradlew -q run --args="list --json"
-./gradlew -q run --args="run --all --json"           # full suite, JSON report (agents)
-./gradlew -q run --args="run --source novelfull"     # one source, human output
-./gradlew -q run --args="run --all --offline"        # no-network structural checks only
-./gradlew    run --args="serve --port 8080"          # web UI (blocks)
+./gradlew -q run -Pext=$EXT --args="list"                    # sources + capabilities
+./gradlew -q run -Pext=$EXT --args="list --json"
+./gradlew -q run -Pext=$EXT --args="run --all --json"        # full suite, JSON (agents)
+./gradlew -q run -Pext=$EXT --args="run --source novelfull"  # one source, human output
+./gradlew -q run -Pext=$EXT --args="run --all --offline"     # no-network structural checks
+./gradlew    run -Pext=$EXT --args="serve --port 8080"       # web UI (blocks)
+./gradlew    listSourceDirs -Pext=$EXT                       # show exactly what got wired in
 ```
+
+Optional path overrides (defaults derive from `-Pext`):
+`-Papi=<grimoire-extensions-api>`, `-Plib=<lib-root>`,
+`-PincludeX=true -Pextx=<grimoire-extensions-x>`. Point `-Pext` at any repo of
+the same `src/{lang}/{name}` shape (e.g. a fork or the private R18 repo).
 
 `run` flags: `--source <id|name|substr>`, `--lang <code>`, `--all`,
 `--query <q>` (default "the"), `--timeout <sec>` (default 30), `--offline`,
@@ -32,7 +45,7 @@ is the expected signal that the suite found errors, not a build break.
 For clean stdout (no Gradle log noise) when scraping JSON, build a launcher once:
 
 ```bash
-./gradlew installDist
+./gradlew installDist -Pext=$EXT
 ./build/install/inspector/bin/inspector run --all --json
 ```
 
@@ -46,10 +59,11 @@ There is **no Android here**. The harness compiles the API, `lib/`, and every
 extension's `src/main` Kotlin **from sibling checkouts** into one JVM classpath:
 
 - Source roots are wired in `build.gradle.kts` via `sourceSets.main.java.srcDirs`
-  from Gradle properties — defaults assume repos are side-by-side:
-  `-PgrimoireApiDir=../grimoire-extensions-api`, `-PgrimoireExtDir=../grimoire-extensions`.
-  Add the private repo with `-PgrimoireIncludeX=true -PgrimoireExtXDir=…`.
-  Run `./gradlew listSourceDirs` to print exactly what got wired in.
+  from Gradle properties. `-Pext=<extensions-repo>` is **required** (no sibling
+  default); `-Papi`/`-Plib` default to next-to / inside it; the build throws a
+  guided error for source-hungry tasks when `-Pext` is missing. Add the private
+  repo with `-PincludeX=true -Pextx=…`. Run `./gradlew listSourceDirs -Pext=…`
+  to print exactly what got wired in.
 - The only Android coupling in the API + extensions is a tiny bounded set
   (`CookieManager`, `Context`, `WebSettings`, `WebView`/`WebViewClient`,
   `Handler`/`Looper`, `@SuppressLint`, plus `org.json`). It is satisfied by
