@@ -23,6 +23,7 @@ const TAB_LABELS: Record<string, string> = {
   filters: "Filters",
   config: "Config",
   login: "Login",
+  cookies: "Cookies",
 };
 
 export function Layout() {

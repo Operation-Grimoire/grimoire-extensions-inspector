@@ -1,32 +1,30 @@
-import { useState } from "react";
-import { Anchor, Button, Code, Group, Stack, Text, Textarea } from "@mantine/core";
+import { Link } from "react-router-dom";
+import { Anchor, Stack, Text } from "@mantine/core";
 import { api, LoginDto } from "../api";
-import { useAsync, Spinner, ErrorBanner, errMsg } from "../ui";
+import { useAsync, Spinner, ErrorBanner } from "../ui";
 import { useCurrentSource } from "./SourceLayout";
 
 export function Login() {
   const source = useCurrentSource();
   const state = useAsync<LoginDto>(() => api.login(source.id), [source.id]);
-  const [cookies, setCookies] = useState("");
-  const [status, setStatus] = useState<string>();
 
   if (state.loading) return <Spinner />;
   if (state.error) return <ErrorBanner msg={state.error} />;
   const info = state.data;
   if (!info || (info.loginUrl == null && info.isLoggedIn == null))
-    return <Text c="dimmed">this source has no WebView login</Text>;
-
-  const inject = async () => {
-    try {
-      await api.cookies(source.id, cookies);
-      setStatus("injected ✓ — re-open a tab to use the session");
-    } catch (e) {
-      setStatus(errMsg(e));
-    }
-  };
+    return (
+      <Text c="dimmed">
+        this source has no WebView login. To get past Cloudflare or a login wall, paste session
+        cookies on the{" "}
+        <Anchor component={Link} to={`/source/${source.id}/cookies`}>
+          Cookies
+        </Anchor>{" "}
+        tab.
+      </Text>
+    );
 
   return (
-    <Stack gap="sm" maw={640}>
+    <Stack gap="sm">
       <Text size="sm">
         loginUrl:{" "}
         {info.loginUrl ? (
@@ -44,25 +42,12 @@ export function Login() {
         </Text>
       </Text>
       <Text c="dimmed" size="xs">
-        Headless can’t run the interactive WebView login. Paste session cookies captured from a
-        browser (<Code>name=value; name2=value2</Code>) to exercise login-gated calls:
+        Interactive WebView login can’t run headlessly. Use the{" "}
+        <Anchor component={Link} to={`/source/${source.id}/cookies`}>
+          Cookies
+        </Anchor>{" "}
+        tab to paste a session captured from a browser.
       </Text>
-      <Textarea
-        rows={3}
-        placeholder="cf_clearance=…; sessionid=…"
-        value={cookies}
-        onChange={(e) => setCookies(e.currentTarget.value)}
-      />
-      <Group>
-        <Button onClick={inject} disabled={!cookies.trim()}>
-          Inject cookies
-        </Button>
-        {status && (
-          <Text c="dimmed" size="sm">
-            {status}
-          </Text>
-        )}
-      </Group>
     </Stack>
   );
 }

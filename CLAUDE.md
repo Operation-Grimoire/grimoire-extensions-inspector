@@ -29,6 +29,7 @@ EXT=/path/to/grimoire-extensions   # the repo you want to test
 ./gradlew -q run -Pext=$EXT --args="run --all --offline"     # no-network structural checks
 ./gradlew    serve -Pext=$EXT                                # web UI: build React app + serve (blocks)
 ./gradlew    serve -Pext=$EXT -Pport=9090                    # …on a custom port
+./gradlew    dev   -Pext=$EXT                                # backend + Vite dev server, UI hot-reload @ :5173
 ./gradlew    listSourceDirs -Pext=$EXT                       # show exactly what got wired in
 ```
 
@@ -57,7 +58,9 @@ For clean stdout (no Gradle log noise) when scraping JSON, build a launcher once
 
 Web JSON API mirrors the CLI: `curl localhost:8080/api/sources`, plus per-source
 `/popular`, `/latest`, `/search`, `/filters`, `/novel`, `/chapters`, `/pages`,
-`/prefs`, `/login`, `/cookies`, a `/api/run` suite, and an `/img` proxy.
+`/prefs`, `/login`, `/cookies` (GET reads / POST injects / DELETE clears the
+in-memory cookie jar), a global `/api/ua` (GET/POST the User-Agent override), a
+`/api/run` suite, and an `/img` proxy.
 
 ## How it works (the important part)
 
@@ -90,9 +93,17 @@ auto-discovered on the next run.
   its hardcoded UA and the Cloudflare WebView path is unreachable — a challenge
   throws `CloudflareException`, which the engine catches and reports as a
   `CLOUDFLARE_BLOCKED` **warning** (not a crash). Don't "fix" this by feeding a
-  Context; it can't solve JS challenges headlessly anyway.
-- Interactive WebView login can't run. The login panel reports state and accepts
-  pasted session cookies (injected into the stub `CookieManager`).
+  Context; it can't solve JS challenges headlessly anyway. You *can* paste a
+  browser's `cf_clearance` (Cookies tab) — but CF binds it to the solving UA, so
+  pair it with the UA override (`engine/NetworkUa.kt` reflects the singleton's
+  cached UA; `GET`/`POST /api/ua`, toggled from the Cookies tab) set to that
+  browser's `navigator.userAgent`.
+- Interactive WebView login can't run. The Login tab only reports state; the
+  dedicated **Cookies** tab (every source has one, independent of login support)
+  takes session cookies pasted from a real browser — incl. `cf_clearance` to get
+  past a `CLOUDFLARE_BLOCKED` warning — and injects them into the stub
+  `CookieManager`. Note `cf_clearance` is bound to the solving browser's UA + IP,
+  so it can still be rejected if those differ from the host.
 
 ## Layout
 
@@ -145,20 +156,24 @@ header shows breadcrumbs. Routes (`src/App.tsx`):
 - `/` — home placeholder · `/run?source=<id|name>` — suite report (filterable)
 - `/source/:id` — `SourceLayout` (head + tab nav + `<Outlet/>`; passes the
   `SourceMeta` to children via `useOutletContext`/`useCurrentSource`)
-  - `popular` · `latest` · `search?q=<q>` · `filters` · `config` · `login`
+  - `popular` · `latest` · `search?q=<q>` · `filters` · `config` · `login` ·
+    `cookies` (paste session/`cf_clearance` cookies — works for every source)
   - `novel?u=<url>&t=<title>` — `NovelPage` (detail + chapters)
   - `read?u=<chapterUrl>&t=<name>&nu=<novelUrl>&nt=<novelTitle>` — `ReaderPage`
     (`nu`/`nt` let the reader + breadcrumb link back to the novel)
 URL params carry the source-defined `url`/`query` strings; `vite.config.ts` uses
 `base: "/"` so absolute `/assets/…` paths resolve on deep routes.
 
-- **Editing the UI:** change files under `frontend/src`, then `./gradlew serve …`
-  rebuilds the bundle. The JSON contract is `frontend/src/api.ts` ⇄
-  `engine/Dto.kt` / `Report.kt` — keep them in sync when you add an endpoint.
-- **Frontend hot reload (dev):** run the backend once
-  (`./gradlew serve -Pext=…` or `run --args="serve"`) and in parallel
-  `cd frontend && npm run dev`; open `http://localhost:5173` — Vite proxies
-  `/api` and `/img` to `:8080` and hot-reloads the UI on save.
+- **UI hot reload (one command):** `./gradlew dev -Pext=…` runs the backend
+  (`:8080`, serving `/api` + `/img`) **and** the Vite dev server together; open
+  `http://localhost:5173` and edits under `frontend/src` hot-reload instantly
+  (Vite proxies `/api` + `/img` to `:8080`). Ctrl+C stops both. Backend Kotlin
+  changes still need a restart. `serve` is the build-once path (Ktor serves the
+  static bundle, no HMR); use it to sanity-check the production bundle.
+- **Editing the UI (build-once):** change files under `frontend/src`, then
+  `./gradlew serve …` rebuilds the bundle. The JSON contract is
+  `frontend/src/api.ts` ⇄ `engine/Dto.kt` / `Report.kt` — keep them in sync when
+  you add an endpoint.
 - The built bundle is generated, not committed (`build/` and
   `frontend/node_modules` are gitignored).
 

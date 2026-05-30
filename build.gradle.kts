@@ -29,7 +29,7 @@ val includeX = (prop("includeX", "grimoireIncludeX"))?.toBoolean() ?: false
 // Only the tasks that actually need the sources should hard-fail when the path
 // is missing — `gradlew tasks`, `help`, etc. still work without it.
 val sourceHungryTasks = setOf(
-    "run", "serve", "compileKotlin", "compileJava", "classes", "build", "assemble",
+    "run", "serve", "dev", "compileKotlin", "compileJava", "classes", "build", "assemble",
     "jar", "installDist", "distZip", "distTar", "listSourceDirs",
 )
 val needsSources = gradle.startParameter.taskNames.any { it.substringAfterLast(':') in sourceHungryTasks }
@@ -152,6 +152,32 @@ tasks.register<JavaExec>("serve") {
     classpath = sourceSets["main"].runtimeClasspath
     args("serve")
     (findProperty("port") as String?)?.let { args("--port", it) }
+}
+
+// Dev mode: backend + Vite dev server together, with UI hot-reload (HMR).
+// The backend only serves /api + /img here; the UI is served by Vite on :5173
+// (which proxies /api + /img to the backend per vite.config.ts), so editing
+// anything under frontend/src refreshes instantly without a Gradle rebuild.
+// Backend Kotlin changes still need a restart (Ctrl+C and re-run).
+tasks.register("dev") {
+    group = "application"
+    description = "Run backend + Vite dev server with UI hot-reload (open http://localhost:5173)"
+    dependsOn("classes", npmInstall)
+    doLast {
+        // Vite's proxy targets :8080, so the backend must use that port in dev.
+        val javaBin = file("${System.getProperty("java.home")}/bin/java" + if (isWindows) ".exe" else "")
+        val cp = sourceSets["main"].runtimeClasspath.asPath
+        val backend = ProcessBuilder(javaBin.path, "-cp", cp, "io.grimoire.inspector.MainKt", "serve", "--port", "8080")
+            .inheritIO().start()
+        Runtime.getRuntime().addShutdownHook(Thread { backend.destroy() })
+        println("\n>>> backend on :8080 — open the Vite dev server at http://localhost:5173 (HMR)\n")
+        try {
+            val vite = ProcessBuilder(npm("run", "dev")).directory(frontendDir.asFile).inheritIO().start()
+            vite.waitFor()
+        } finally {
+            backend.destroy()
+        }
+    }
 }
 
 // Print which extensions got wired in, for sanity.

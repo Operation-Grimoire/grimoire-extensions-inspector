@@ -4,7 +4,7 @@ import { SourceMeta } from "../api";
 import { Badge, Spinner } from "../ui";
 import { useSource, useSources } from "../sources";
 
-const TABS = ["popular", "latest", "search", "filters", "config", "login"] as const;
+const TABS = ["popular", "latest", "search", "filters", "config", "login", "cookies"] as const;
 const LABEL: Record<(typeof TABS)[number], string> = {
   popular: "Popular",
   latest: "Latest",
@@ -12,6 +12,7 @@ const LABEL: Record<(typeof TABS)[number], string> = {
   filters: "Filters",
   config: "Config",
   login: "Login",
+  cookies: "Cookies",
 };
 
 export function SourceLayout() {

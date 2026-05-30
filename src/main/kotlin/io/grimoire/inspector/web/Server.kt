@@ -7,10 +7,13 @@ import io.grimoire.inspector.engine.ApiError
 import io.grimoire.inspector.engine.CookiesReq
 import io.grimoire.inspector.engine.Inspector
 import io.grimoire.inspector.engine.LoginDto
+import io.grimoire.inspector.engine.NetworkUa
 import io.grimoire.inspector.engine.PrefsReq
 import io.grimoire.inspector.engine.RunReq
 import io.grimoire.inspector.engine.SearchReq
 import io.grimoire.inspector.engine.SourceOps
+import io.grimoire.inspector.engine.UaDto
+import io.grimoire.inspector.engine.UaReq
 import io.grimoire.inspector.engine.UrlReq
 import io.grimoire.inspector.engine.toDto
 import io.ktor.http.ContentType
@@ -26,6 +29,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
@@ -100,6 +104,12 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                         val o = resolve(byId) ?: return@get
                         call.guarded { call.respond(LoginDto(o.loginUrl, o.isLoggedIn())) }
                     }
+                    get("/cookies") {
+                        val o = resolve(byId) ?: return@get
+                        val target = call.request.queryParameters["url"] ?: o.ds.baseUrl
+                        val cm = android.webkit.CookieManager.getInstance()
+                        call.respond(mapOf("url" to target, "cookies" to (cm.getCookie(target) ?: "")))
+                    }
                     post("/cookies") {
                         val o = resolve(byId) ?: return@post
                         val req = call.receive<CookiesReq>()
@@ -107,8 +117,25 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                         val cm = android.webkit.CookieManager.getInstance()
                         req.cookies.split(';').map { it.trim() }.filter { it.isNotEmpty() }
                             .forEach { cm.setCookie(target, it) }
-                        call.respond(mapOf("ok" to true, "applied" to target))
+                        call.respond(mapOf("applied" to target))
                     }
+                    delete("/cookies") {
+                        resolve(byId) ?: return@delete
+                        android.webkit.CookieManager.getInstance().removeAllCookies(null)
+                        call.respond(mapOf("ok" to true))
+                    }
+                }
+
+                // Global User-Agent override (shared across sources, since the
+                // API's NetworkContext UA is a singleton). Match it to the
+                // browser that solved Cloudflare so cf_clearance is accepted.
+                get("/ua") {
+                    call.respond(UaDto(NetworkUa.effective(), NetworkUa.isOverridden))
+                }
+                post("/ua") {
+                    val req = call.receive<UaReq>()
+                    NetworkUa.override(req.userAgent)
+                    call.respond(UaDto(NetworkUa.effective(), NetworkUa.isOverridden))
                 }
 
                 post("/run") {

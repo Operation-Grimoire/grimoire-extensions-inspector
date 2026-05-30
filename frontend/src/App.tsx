@@ -7,6 +7,7 @@ import { Browse } from "./components/Browse";
 import { Filters } from "./components/Filters";
 import { Config } from "./components/Config";
 import { Login } from "./components/Login";
+import { CookiesPage } from "./components/CookiesPage";
 import { NovelPage } from "./components/NovelPage";
 import { ReaderPage } from "./components/ReaderPage";
 import { RunReport } from "./components/RunReport";
@@ -26,6 +27,7 @@ export function App() {
             <Route path="filters" element={<Filters />} />
             <Route path="config" element={<Config />} />
             <Route path="login" element={<Login />} />
+            <Route path="cookies" element={<CookiesPage />} />
             <Route path="novel" element={<NovelPage />} />
             <Route path="read" element={<ReaderPage />} />
           </Route>

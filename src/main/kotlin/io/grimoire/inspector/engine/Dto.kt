@@ -107,6 +107,13 @@ data class PrefsReq(val values: Map<String, String> = emptyMap())
 @Serializable
 data class CookiesReq(val cookies: String, val url: String? = null)
 
+/** Empty/blank `userAgent` clears the override and reverts to the default. */
+@Serializable
+data class UaReq(val userAgent: String = "")
+
+@Serializable
+data class UaDto(val userAgent: String, val overridden: Boolean)
+
 @Serializable
 data class RunReq(
     val source: String? = null,

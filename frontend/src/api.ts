@@ -66,6 +66,11 @@ export interface LoginDto {
   isLoggedIn?: boolean | null;
 }
 
+export interface UaDto {
+  userAgent: string;
+  overridden: boolean;
+}
+
 export interface Diagnostic {
   stage: string;
   severity: Severity;
@@ -140,8 +145,18 @@ export const api = {
   setPrefs: (id: number, values: Record<string, string>) =>
     post<{ ok: boolean }>(`/api/sources/${id}/prefs`, { values }),
   login: (id: number) => fetch(`/api/sources/${id}/login`).then((r) => parse<LoginDto>(r)),
+  getCookies: (id: number, url?: string) =>
+    fetch(`/api/sources/${id}/cookies${url ? `?url=${encodeURIComponent(url)}` : ""}`).then((r) =>
+      parse<{ url: string; cookies: string }>(r),
+    ),
   cookies: (id: number, cookies: string, url?: string) =>
     post<{ ok: boolean }>(`/api/sources/${id}/cookies`, { cookies, url }),
+  clearCookies: (id: number) =>
+    fetch(`/api/sources/${id}/cookies`, { method: "DELETE" }).then((r) =>
+      parse<{ ok: boolean }>(r),
+    ),
+  ua: () => fetch("/api/ua").then((r) => parse<UaDto>(r)),
+  setUa: (userAgent: string) => post<UaDto>("/api/ua", { userAgent }),
   run: (source?: string) => post<RunReport>("/api/run", source ? { source } : {}),
 };
 

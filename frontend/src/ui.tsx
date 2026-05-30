@@ -64,7 +64,7 @@ export function ErrorBanner({ msg }: { msg: string }) {
       {msg}
       {cf && (
         <Text size="xs" c="dimmed" mt={4}>
-          Open the Login tab to paste session cookies.
+          Open the Cookies tab to paste session cookies.
         </Text>
       )}
     </Alert>
