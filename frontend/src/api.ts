@@ -12,6 +12,8 @@ export interface SourceMeta {
   capabilities: string[];
   hasDynamicFilters: boolean;
   supportsSearchWithFilters: boolean;
+  hosts: string[];
+  activeHost?: string | null;
 }
 
 export interface Novel {
@@ -160,6 +162,8 @@ export const api = {
   prefs: (id: number) => fetch(`/api/sources/${id}/prefs`).then((r) => parse<PrefDto[]>(r)),
   setPrefs: (id: number, values: Record<string, string>) =>
     post<{ ok: boolean }>(`/api/sources/${id}/prefs`, { values }),
+  setHost: (id: number, host: string) =>
+    post<{ active: string }>(`/api/sources/${id}/host`, { host }),
   login: (id: number) => fetch(`/api/sources/${id}/login`).then((r) => parse<LoginDto>(r)),
   getCookies: (id: number, url?: string) =>
     fetch(`/api/sources/${id}/cookies${url ? `?url=${encodeURIComponent(url)}` : ""}`).then((r) =>

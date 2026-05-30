@@ -7,6 +7,7 @@ import io.grimoire.inspector.engine.ApiError
 import io.grimoire.inspector.engine.Checks
 import io.grimoire.inspector.engine.CookiesReq
 import io.grimoire.inspector.engine.EpubResult
+import io.grimoire.inspector.engine.HostReq
 import io.grimoire.inspector.engine.Inspector
 import io.grimoire.inspector.engine.LoginDto
 import io.grimoire.inspector.engine.NetworkUa
@@ -108,6 +109,12 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                             val bytes = o.epub(url)
                             call.respondBytes(bytes, ContentType.parse("application/epub+zip"))
                         }
+                    }
+                    post("/host") {
+                        val o = resolve(byId) ?: return@post
+                        val req = call.receive<HostReq>()
+                        o.setHost(req.host)
+                        call.respond(mapOf("active" to (o.activeHost ?: "")))
                     }
                     get("/prefs") {
                         val o = resolve(byId) ?: return@get

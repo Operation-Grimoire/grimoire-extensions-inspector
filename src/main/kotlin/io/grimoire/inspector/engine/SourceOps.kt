@@ -9,6 +9,7 @@ import io.grimoire.api.network.defaultOkHttpClient
 import io.grimoire.api.source.CatalogueSource
 import io.grimoire.api.source.ConfigurableSource
 import io.grimoire.api.source.EpubSource
+import io.grimoire.api.source.MultiHostSource
 import io.grimoire.api.source.MultiLanguageSource
 import io.grimoire.api.source.PaginatedSource
 import io.grimoire.api.source.SourcePreference
@@ -28,6 +29,13 @@ class SourceOps(val ds: DiscoveredSource) {
 
     val source = ds.instance
     val catalogue: CatalogueSource? = source as? CatalogueSource
+    private val multiHost: MultiHostSource? = source as? MultiHostSource
+
+    val hosts: List<String> get() = multiHost?.hosts ?: emptyList()
+    val activeHost: String? get() = multiHost?.activeHost
+
+    /** Pin the mirror to route through (blank resets to the first host). */
+    fun setHost(host: String) = multiHost?.setActiveHost(host) ?: Unit
 
     suspend fun popular(page: Int): List<Novel> = cat().getPopularNovels(page)
     suspend fun latest(page: Int): List<Novel> = cat().getLatestUpdates(page)
@@ -101,6 +109,7 @@ class SourceOps(val ds: DiscoveredSource) {
         if (source is MultiLanguageSource) add("MultiLanguageSource")
         if (source is PaginatedSource) add("PaginatedSource")
         if (source is EpubSource) add("EpubSource")
+        if (source is MultiHostSource) add("MultiHostSource")
     }
 
     fun meta(): SourceMeta = SourceMeta(
@@ -113,6 +122,8 @@ class SourceOps(val ds: DiscoveredSource) {
         capabilities = capabilities(),
         hasDynamicFilters = catalogue?.hasDynamicFilters ?: false,
         supportsSearchWithFilters = catalogue?.supportsSearchWithFilters ?: false,
+        hosts = hosts,
+        activeHost = activeHost,
     )
 
     private fun cat(): CatalogueSource =

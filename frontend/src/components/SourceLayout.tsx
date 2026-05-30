@@ -40,7 +40,9 @@ export function SourceLayout() {
       case "filters":
         return browsable ? null : "source is not a CatalogueSource — nothing to browse";
       case "config":
-        return caps.includes("ConfigurableSource") ? null : "source has no configurable preferences";
+        return caps.includes("ConfigurableSource") || source.hosts.length > 0
+          ? null
+          : "source has no configurable preferences";
       case "login":
         return caps.includes("WebViewLoginSource") ? null : "source has no WebView login";
       default:

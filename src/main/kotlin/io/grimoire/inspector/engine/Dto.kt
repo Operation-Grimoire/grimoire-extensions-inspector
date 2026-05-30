@@ -108,6 +108,10 @@ data class PrefsReq(val values: Map<String, String> = emptyMap())
 @Serializable
 data class CookiesReq(val cookies: String, val url: String? = null)
 
+/** Pin a MultiHostSource to a mirror; blank resets to the first host. */
+@Serializable
+data class HostReq(val host: String = "")
+
 /** Empty/blank `userAgent` clears the override and reverts to the default. */
 @Serializable
 data class UaReq(val userAgent: String = "")
