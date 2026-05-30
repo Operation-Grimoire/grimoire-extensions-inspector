@@ -77,6 +77,9 @@ function Detail({ novel }: { novel: Novel }) {
             <Field label="Status">
               <Val s={novel.status} />
             </Field>
+            <Field label="Language">
+              <Val s={novel.language} />
+            </Field>
             <Field label="Genres">
               {novel.genres.length > 0 ? (
                 <Group gap={4}>

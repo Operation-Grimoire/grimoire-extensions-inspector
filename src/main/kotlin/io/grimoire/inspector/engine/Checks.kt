@@ -3,6 +3,7 @@ package io.grimoire.inspector.engine
 import io.grimoire.api.model.Chapter
 import io.grimoire.api.model.Novel
 import io.grimoire.api.model.NovelPage
+import io.grimoire.api.model.NovelStatus
 
 /** Validations that mirror the breakage the app actually trips over. */
 object Checks {
@@ -39,6 +40,11 @@ object Checks {
         if (n.title.isBlank()) add(Diagnostic("details", Severity.WARN, "TITLE_EMPTY", "detail page has a blank title", samples = listOf(n.url)))
         if (n.thumbnailUrl.isNullOrBlank()) add(Diagnostic("details", Severity.WARN, "THUMBNAIL_EMPTY", "detail page has an empty thumbnailUrl", samples = listOf(n.url)))
         if (n.description.isNullOrBlank()) add(Diagnostic("details", Severity.WARN, "DESCRIPTION_EMPTY", "detail page has an empty description"))
+        if (n.author.isNullOrBlank()) add(Diagnostic("details", Severity.WARN, "AUTHOR_EMPTY", "detail page has an empty author"))
+        if (n.genres.isEmpty()) add(Diagnostic("details", Severity.WARN, "GENRES_EMPTY", "detail page has no genres"))
+        if (n.status == NovelStatus.UNKNOWN) add(Diagnostic("details", Severity.INFO, "STATUS_UNKNOWN", "novel.status=UNKNOWN (not parsed)"))
+        if (n.rating == null) add(Diagnostic("details", Severity.INFO, "RATING_EMPTY", "novel.rating is null (no rating parsed)"))
+        if (n.language.isNullOrBlank()) add(Diagnostic("details", Severity.INFO, "LANGUAGE_EMPTY", "novel.language is null"))
         if (!n.initialized) add(Diagnostic("details", Severity.INFO, "NOT_INITIALIZED", "novel.initialized=false (host treats it as a stub)"))
     }
 
@@ -65,6 +71,14 @@ object Checks {
             "chapters", Severity.ERROR, "CHAPTER_URL_DUPLICATE",
             "$dupes duplicate chapter url(s) — duplicate Compose keys crash the reader list", dupes,
             dupeCounts.entries.take(SAMPLE).map { "${it.key} ×${it.value}" },
+        )
+        if (list.all { it.chapterNumber < 0 }) diags += Diagnostic(
+            "chapters", Severity.WARN, "CHAPTER_NUMBER_UNSET",
+            "no chapter has a chapterNumber (all -1) — host can't order/track by number",
+        )
+        if (list.all { it.uploadDate == 0L }) diags += Diagnostic(
+            "chapters", Severity.INFO, "UPLOAD_DATE_MISSING",
+            "no chapter has an uploadDate (all 0)",
         )
         return diags
     }

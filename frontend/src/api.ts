@@ -24,6 +24,7 @@ export interface Novel {
   status: string;
   rating?: number | null;
   ratingCount?: number | null;
+  language?: string | null;
   initialized: boolean;
 }
 

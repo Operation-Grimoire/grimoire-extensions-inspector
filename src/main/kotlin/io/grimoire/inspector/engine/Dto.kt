@@ -20,12 +20,13 @@ data class NovelDto(
     val status: String = "UNKNOWN",
     val rating: Float? = null,
     val ratingCount: Int? = null,
+    val language: String? = null,
     val initialized: Boolean = false,
 )
 
 fun Novel.toDto() = NovelDto(
     url, title, thumbnailUrl, author, description, genres,
-    status.name, rating, ratingCount, initialized,
+    status.name, rating, ratingCount, language, initialized,
 )
 
 @Serializable
