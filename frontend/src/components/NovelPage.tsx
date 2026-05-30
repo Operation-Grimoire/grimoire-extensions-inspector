@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Alert, Badge, Button, Group, Image, Stack, Text, Title, UnstyledButton } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Button,
+  Code,
+  Group,
+  Image,
+  Stack,
+  Table,
+  Text,
+  UnstyledButton,
+} from "@mantine/core";
 import { api, Chapter, imgUrl, Novel } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
 import { useCurrentSource } from "./SourceLayout";
@@ -35,24 +46,89 @@ function Detail({ novel }: { novel: Novel }) {
     navigate(`/source/${source.id}/read?${q.toString()}`);
   };
 
-  const meta = [novel.author, novel.status, novel.genres.join(", ")].filter(Boolean).join(" · ");
-
   return (
-    <Stack gap="sm">
-      <Title order={3}>{novel.title || "(untitled)"}</Title>
-      {meta && (
-        <Text c="dimmed" size="sm">
-          {meta}
+    <Stack gap="md">
+      <Group align="flex-start" gap="lg" wrap="nowrap">
+        {novel.thumbnailUrl ? (
+          <Image
+            src={imgUrl(source.id, novel.thumbnailUrl)}
+            h={200}
+            w={140}
+            radius="md"
+            fit="contain"
+            flex="0 0 auto"
+          />
+        ) : (
+          <Alert color="yellow" variant="light" w={140} flex="0 0 auto">
+            no thumbnailUrl
+          </Alert>
+        )}
+
+        <Table withRowBorders={false} verticalSpacing={5} style={{ flex: 1 }} layout="fixed">
+          <Table.Tbody>
+            <Field label="Title">
+              <Val s={novel.title} />
+            </Field>
+            <Field label="Author">
+              <Val s={novel.author} />
+            </Field>
+            <Field label="Status">
+              <Val s={novel.status} />
+            </Field>
+            <Field label="Genres">
+              {novel.genres.length > 0 ? (
+                <Group gap={4}>
+                  {novel.genres.map((g, i) => (
+                    <Badge key={i} variant="light" color="gray" radius="sm">
+                      {g}
+                    </Badge>
+                  ))}
+                </Group>
+              ) : (
+                <Empty />
+              )}
+            </Field>
+            <Field label="Rating">
+              {novel.rating != null ? (
+                <Text size="sm">
+                  {novel.rating}
+                  {novel.ratingCount != null && (
+                    <Text span c="dimmed">
+                      {" "}
+                      ({novel.ratingCount} votes)
+                    </Text>
+                  )}
+                </Text>
+              ) : (
+                <Empty />
+              )}
+            </Field>
+            <Field label="Initialized">
+              <Badge variant="light" color={novel.initialized ? "green" : "gray"} radius="sm">
+                {String(novel.initialized)}
+              </Badge>
+            </Field>
+            <Field label="URL">
+              <Mono>{novel.url}</Mono>
+            </Field>
+            <Field label="Thumbnail">{novel.thumbnailUrl ? <Mono>{novel.thumbnailUrl}</Mono> : <Empty />}</Field>
+          </Table.Tbody>
+        </Table>
+      </Group>
+
+      <div>
+        <Text fw={600} size="sm" c="dimmed" mb={4}>
+          Description
         </Text>
-      )}
-      {novel.thumbnailUrl ? (
-        <Image src={imgUrl(source.id, novel.thumbnailUrl)} h={220} w="auto" radius="md" fit="contain" />
-      ) : (
-        <Alert color="yellow" variant="light">
-          empty thumbnailUrl
-        </Alert>
-      )}
-      <Text maw={720}>{novel.description || "(no description)"}</Text>
+        {novel.description?.trim() ? (
+          <Text size="sm" maw={760} style={{ whiteSpace: "pre-wrap" }}>
+            {novel.description}
+          </Text>
+        ) : (
+          <Empty />
+        )}
+      </div>
+
       {!showChapters ? (
         <Button variant="default" w="fit-content" onClick={() => setShowChapters(true)}>
           Load chapters
@@ -61,6 +137,39 @@ function Detail({ novel }: { novel: Novel }) {
         <Chapters url={novel.url} onRead={read} />
       )}
     </Stack>
+  );
+}
+
+/** One labeled row in the details table; values render exactly as the source
+ *  returned them, with empties called out. */
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Table.Tr>
+      <Table.Td w={110} style={{ verticalAlign: "top" }}>
+        <Text fw={600} size="sm" c="dimmed">
+          {label}
+        </Text>
+      </Table.Td>
+      <Table.Td>{children}</Table.Td>
+    </Table.Tr>
+  );
+}
+
+function Val({ s }: { s?: string | null }) {
+  return s && s.trim() ? <Text size="sm">{s}</Text> : <Empty />;
+}
+
+function Empty() {
+  return (
+    <Text size="sm" c="yellow">
+      (empty)
+    </Text>
+  );
+}
+
+function Mono({ children }: { children: React.ReactNode }) {
+  return (
+    <Code style={{ wordBreak: "break-all", whiteSpace: "normal" }}>{children}</Code>
   );
 }
 
