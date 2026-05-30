@@ -23,7 +23,7 @@ class StageOutcome(
 
 /** Runs the full app-mimicking suite over a set of sources. */
 class Inspector(
-    private val query: String = "the",
+    private val query: String = "world",
     private val timeoutMs: Long = 30_000,
     private val offline: Boolean = false,
     private val chapterConcurrency: Int = 1,

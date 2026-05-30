@@ -11,7 +11,7 @@ export function Browse({ mode }: { mode: Mode }) {
   const source = useCurrentSource();
   const navigate = useNavigate();
   const [sp, setSp] = useSearchParams();
-  const submitted = sp.get("q") ?? "the";
+  const submitted = sp.get("q") ?? "world";
   const [query, setQuery] = useState(submitted);
 
   const state = useAsync<Novel[]>(() => {

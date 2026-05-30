@@ -44,7 +44,7 @@ Optional path overrides (defaults derive from `-Pext`):
 the same `src/{lang}/{name}` shape (e.g. a fork or the private R18 repo).
 
 `run` flags: `--source <id|name|substr>`, `--lang <code>`, `--all`,
-`--query <q>` (default "the"), `--timeout <sec>` (default 30),
+`--query <q>` (default "world"), `--timeout <sec>` (default 30),
 `--concurrency <n>` (parallel chapter-page fetches, default 1), `--offline`,
 `--json`, `--fail-on warn|error|never` (default `error`). **Exit code is
 non-zero when there are ERROR diagnostics** — so `run` "failing" the Gradle task

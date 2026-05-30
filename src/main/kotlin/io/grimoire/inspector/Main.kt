@@ -44,7 +44,7 @@ private class RunCmd : CliktCommand(name = "run") {
     @Suppress("unused")
     private val all by option("--all", help = "inspect every source (the default)").flag()
     private val lang by option("--lang")
-    private val query by option("--query").default("the")
+    private val query by option("--query").default("world")
     private val timeout by option("--timeout", help = "per-call timeout, seconds").int().default(30)
     private val concurrency by option("--concurrency", help = "parallel chapter-page fetches (1 = sequential)").int().default(1)
     private val offline by option("--offline").flag()
