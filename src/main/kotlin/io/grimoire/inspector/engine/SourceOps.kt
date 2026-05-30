@@ -37,6 +37,13 @@ class SourceOps(val ds: DiscoveredSource) {
     fun filterList(): List<Filter<*>> = catalogue?.getFilterList() ?: emptyList()
     suspend fun fetchFilters(): List<Filter<*>> = cat().fetchFilterOptions()
 
+    /** A brand-new instance of this source, via the same no-arg ctor the app
+     *  uses. `fetchFilterOptions` mutates a source's filter state, so the
+     *  dynamic-filters check needs a cold instance to compare before/after —
+     *  the shared [source] keeps options cached between runs. */
+    fun freshCatalogue(): CatalogueSource? =
+        runCatching { source.javaClass.getDeclaredConstructor().newInstance() as? CatalogueSource }.getOrNull()
+
     suspend fun details(url: String): Novel = source.getNovelDetails(stubNovel(url))
 
     suspend fun chapters(url: String, page: Int? = null, concurrency: Int = 1): List<Chapter> {

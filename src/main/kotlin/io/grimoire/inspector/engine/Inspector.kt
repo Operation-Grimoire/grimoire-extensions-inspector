@@ -116,9 +116,13 @@ class Inspector(
             stages += stage("fetchFilters") {
                 // A dynamic source claims it fetches options over the network.
                 // Verify by comparing total option-weight cold vs. after fetch —
-                // works whether the dynamic filter is a Group or a Select.
-                val before = optionWeight(ops.filterList())
-                val opts = ops.fetchFilters()
+                // works whether the dynamic filter is a Group or a Select. Use a
+                // FRESH instance: fetchFilterOptions mutates filter state, so the
+                // shared source would already be populated on a rerun (before ==
+                // after) and wrongly look like a no-op.
+                val fresh = ops.freshCatalogue()
+                val before = optionWeight(fresh?.getFilterList() ?: ops.filterList())
+                val opts = fresh?.fetchFilterOptions() ?: ops.fetchFilters()
                 val after = optionWeight(opts)
                 val diags = if (after <= before) {
                     listOf(Diagnostic("fetchFilters", Severity.WARN, "DYNAMIC_FILTERS_EMPTY", "fetchFilterOptions added no options (weight $before -> $after)"))
