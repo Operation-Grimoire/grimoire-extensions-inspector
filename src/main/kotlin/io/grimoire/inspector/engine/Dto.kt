@@ -116,6 +116,14 @@ data class HostReq(val host: String = "")
 @Serializable
 data class LanguagesReq(val languages: List<String> = emptyList())
 
+/** Current mirror state of a MultiHostSource. */
+@Serializable
+data class HostsDto(val hosts: List<String> = emptyList(), val active: String = "")
+
+/** Available + currently-enabled languages of a MultiLanguageSource. */
+@Serializable
+data class LanguagesDto(val available: List<String> = emptyList(), val enabled: List<String> = emptyList())
+
 /** Empty/blank `userAgent` clears the override and reverts to the default. */
 @Serializable
 data class UaReq(val userAgent: String = "")

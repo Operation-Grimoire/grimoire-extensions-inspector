@@ -8,6 +8,8 @@ import io.grimoire.inspector.engine.Checks
 import io.grimoire.inspector.engine.CookiesReq
 import io.grimoire.inspector.engine.EpubResult
 import io.grimoire.inspector.engine.HostReq
+import io.grimoire.inspector.engine.HostsDto
+import io.grimoire.inspector.engine.LanguagesDto
 import io.grimoire.inspector.engine.LanguagesReq
 import io.grimoire.inspector.engine.Inspector
 import io.grimoire.inspector.engine.LoginDto
@@ -46,6 +48,9 @@ import okhttp3.Request
 
 fun startServer(port: Int, sources: List<DiscoveredSource>) {
     val byId = sources.associateBy { it.id }
+    // MultiLanguageSource can't report its enabled set, so remember what was set
+    // (per session) to echo back to the UI on reload.
+    val enabledLangs = java.util.concurrent.ConcurrentHashMap<Long, List<String>>()
 
     embeddedServer(CIO, port = port) {
         install(ContentNegotiation) { json(Json { encodeDefaults = true; prettyPrint = false }) }
@@ -111,17 +116,28 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                             call.respondBytes(bytes, ContentType.parse("application/epub+zip"))
                         }
                     }
+                    get("/host") {
+                        val o = resolve(byId) ?: return@get
+                        call.respond(HostsDto(o.hosts, o.activeHost ?: ""))
+                    }
                     post("/host") {
                         val o = resolve(byId) ?: return@post
                         val req = call.receive<HostReq>()
                         o.setHost(req.host)
-                        call.respond(mapOf("active" to (o.activeHost ?: "")))
+                        call.respond(HostsDto(o.hosts, o.activeHost ?: ""))
+                    }
+                    get("/languages") {
+                        val o = resolve(byId) ?: return@get
+                        val id = resolveBlockingId()
+                        call.respond(LanguagesDto(o.languages, id?.let { enabledLangs[it] } ?: emptyList()))
                     }
                     post("/languages") {
                         val o = resolve(byId) ?: return@post
+                        val id = resolveBlockingId()
                         val req = call.receive<LanguagesReq>()
                         o.setLanguages(req.languages.toSet())
-                        call.respond(mapOf("enabled" to req.languages))
+                        if (id != null) enabledLangs[id] = req.languages
+                        call.respond(LanguagesDto(o.languages, req.languages))
                     }
                     get("/prefs") {
                         val o = resolve(byId) ?: return@get

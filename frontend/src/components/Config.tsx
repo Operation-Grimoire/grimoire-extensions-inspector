@@ -102,10 +102,18 @@ export function Config() {
 }
 
 // MultiLanguageSource: restrict browse/search to a chosen set of languages.
+// Loads the currently-enabled set from the backend so it survives tab switches.
 function LanguageSection() {
   const source = useCurrentSource();
+  const state = useAsync(() => api.languages(source.id), [source.id]);
   const [enabled, setEnabled] = useState<string[]>([]);
   const [status, setStatus] = useState<string>();
+
+  useEffect(() => {
+    if (state.data) setEnabled(state.data.enabled);
+  }, [state.data]);
+
+  const available = state.data?.available ?? source.languages;
 
   const change = async (langs: string[]) => {
     setEnabled(langs);
@@ -123,16 +131,17 @@ function LanguageSection() {
         Content languages
       </Text>
       <Text c="dimmed" size="xs" mb={6}>
-        Multi-language source — {source.languages.length} available. Restrict browse/search to a
-        selection (none = all).
+        Multi-language source — {available.length} available. Restrict browse/search to a selection
+        (none = all).
       </Text>
       <Group>
         <MultiSelect
-          data={source.languages}
+          data={available}
           value={enabled}
           onChange={change}
+          disabled={state.loading}
           placeholder={enabled.length === 0 ? "all languages" : undefined}
-          searchable={source.languages.length > 8}
+          searchable={available.length > 8}
           clearable
           style={{ minWidth: 300 }}
         />
@@ -147,14 +156,20 @@ function LanguageSection() {
 }
 
 // MultiHostSource: pick which interchangeable mirror to route requests through.
+// Reads the active mirror from the backend so it reflects the real state.
 function HostSection() {
   const source = useCurrentSource();
-  const initial = source.activeHost ?? source.hosts[0] ?? "";
-  const [active, setActive] = useState(initial);
+  const state = useAsync(() => api.host(source.id), [source.id]);
+  const [active, setActive] = useState("");
   const [status, setStatus] = useState<string>();
 
+  useEffect(() => {
+    if (state.data) setActive(state.data.active || state.data.hosts[0] || "");
+  }, [state.data]);
+
+  const hosts = state.data?.hosts ?? source.hosts;
   // The active host may be one the source picked itself and not in `hosts`.
-  const data = Array.from(new Set([...source.hosts, ...(active ? [active] : [])]));
+  const data = Array.from(new Set([...hosts, ...(active ? [active] : [])]));
 
   const change = async (h: string | null) => {
     if (!h) return;
@@ -174,8 +189,8 @@ function HostSection() {
         Mirror host
       </Text>
       <Text c="dimmed" size="xs" mb={6}>
-        Multi-host source — {source.hosts.length} interchangeable mirrors. Pin which one requests
-        route through (e.g. when one is down).
+        Multi-host source — {hosts.length} interchangeable mirrors. Pin which one requests route
+        through (e.g. when one is down).
       </Text>
       <Group>
         <Select
@@ -183,6 +198,7 @@ function HostSection() {
           value={active}
           onChange={change}
           allowDeselect={false}
+          disabled={state.loading}
           searchable={data.length > 8}
           style={{ minWidth: 300 }}
         />

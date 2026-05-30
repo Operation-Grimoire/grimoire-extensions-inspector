@@ -163,10 +163,16 @@ export const api = {
   prefs: (id: number) => fetch(`/api/sources/${id}/prefs`).then((r) => parse<PrefDto[]>(r)),
   setPrefs: (id: number, values: Record<string, string>) =>
     post<{ ok: boolean }>(`/api/sources/${id}/prefs`, { values }),
+  host: (id: number) =>
+    fetch(`/api/sources/${id}/host`).then((r) => parse<{ hosts: string[]; active: string }>(r)),
   setHost: (id: number, host: string) =>
-    post<{ active: string }>(`/api/sources/${id}/host`, { host }),
+    post<{ hosts: string[]; active: string }>(`/api/sources/${id}/host`, { host }),
+  languages: (id: number) =>
+    fetch(`/api/sources/${id}/languages`).then((r) =>
+      parse<{ available: string[]; enabled: string[] }>(r),
+    ),
   setLanguages: (id: number, languages: string[]) =>
-    post<{ enabled: string[] }>(`/api/sources/${id}/languages`, { languages }),
+    post<{ available: string[]; enabled: string[] }>(`/api/sources/${id}/languages`, { languages }),
   login: (id: number) => fetch(`/api/sources/${id}/login`).then((r) => parse<LoginDto>(r)),
   getCookies: (id: number, url?: string) =>
     fetch(`/api/sources/${id}/cookies${url ? `?url=${encodeURIComponent(url)}` : ""}`).then((r) =>
