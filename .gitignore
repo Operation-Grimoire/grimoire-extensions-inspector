@@ -1,0 +1,12 @@
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.idea/
+*.iml
+local.properties
+
+# local run artifacts / verification output
+*.log
+run_*.json
+*.jpeg
+.playwright-mcp/
