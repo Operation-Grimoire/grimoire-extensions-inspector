@@ -4,6 +4,7 @@ import io.grimoire.api.model.Chapter
 import io.grimoire.api.model.Novel
 import io.grimoire.api.model.NovelPage
 import io.grimoire.api.model.NovelStatus
+import java.util.zip.ZipInputStream
 
 /** Validations that mirror the breakage the app actually trips over. */
 object Checks {
@@ -93,6 +94,54 @@ object Checks {
             )
         }
         return diags
+    }
+
+    /** Validate the bytes from EpubSource.getEpub: non-empty, a real zip, and a
+     *  well-formed EPUB (mimetype + an .opf package document). */
+    fun epub(bytes: ByteArray): List<Diagnostic> {
+        if (bytes.isEmpty()) {
+            return listOf(Diagnostic("epub", Severity.ERROR, "EPUB_EMPTY", "getEpub returned 0 bytes"))
+        }
+        val isZip = bytes.size >= 4 &&
+            bytes[0].toInt() == 0x50 && bytes[1].toInt() == 0x4B &&
+            bytes[2].toInt() == 0x03 && bytes[3].toInt() == 0x04
+        if (!isZip) {
+            return listOf(Diagnostic("epub", Severity.ERROR, "EPUB_NOT_ZIP", "bytes are not a zip (no PK magic) — size=${bytes.size}, looks like ${sniff(bytes)}"))
+        }
+        val entries = mutableListOf<String>()
+        var mimetype: String? = null
+        runCatching {
+            ZipInputStream(bytes.inputStream()).use { zin ->
+                var e = zin.nextEntry
+                while (e != null) {
+                    entries += e.name
+                    if (e.name == "mimetype") mimetype = zin.readBytes().decodeToString().trim()
+                    e = zin.nextEntry
+                }
+            }
+        }.onFailure {
+            return listOf(Diagnostic("epub", Severity.ERROR, "EPUB_CORRUPT", "zip could not be read: ${it.message}", exceptionType = it.javaClass.simpleName))
+        }
+        val diags = mutableListOf<Diagnostic>()
+        if (mimetype != "application/epub+zip") {
+            diags += Diagnostic("epub", Severity.WARN, "EPUB_BAD_MIMETYPE", "mimetype is '${mimetype ?: "missing"}' (expected application/epub+zip)")
+        }
+        if (entries.none { it.endsWith(".opf") }) {
+            diags += Diagnostic("epub", Severity.ERROR, "EPUB_NO_OPF", "no .opf package document in the archive")
+        }
+        diags += Diagnostic("epub", Severity.INFO, "EPUB_OK", "${entries.size} entries, ${bytes.size} bytes", entries.size, entries.take(SAMPLE))
+        return diags
+    }
+
+    /** Best-effort guess at what non-epub payload a source returned instead. */
+    private fun sniff(bytes: ByteArray): String {
+        val head = bytes.take(64).toByteArray().decodeToString().trimStart().lowercase()
+        return when {
+            head.startsWith("<!doctype html") || head.startsWith("<html") -> "an HTML page"
+            head.startsWith("{") || head.startsWith("[") -> "JSON"
+            head.startsWith("<?xml") -> "XML"
+            else -> "binary/other"
+        }
     }
 
     fun pages(list: List<NovelPage>): List<Diagnostic> {

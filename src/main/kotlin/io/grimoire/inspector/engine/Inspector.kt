@@ -5,6 +5,7 @@ import io.grimoire.api.model.Filter
 import io.grimoire.api.model.Novel
 import io.grimoire.api.network.CloudflareException
 import io.grimoire.api.source.ConfigurableSource
+import io.grimoire.api.source.EpubSource
 import io.grimoire.api.source.MultiLanguageSource
 import io.grimoire.api.source.WebViewLoginSource
 import io.grimoire.inspector.DiscoveredSource
@@ -73,20 +74,30 @@ class Inspector(
             StageOutcome(Checks.details(d, multiLang = ops.source is MultiLanguageSource))
         }
 
-        stages += stage("chapters", target = (detailed ?: firstNovel)?.url) {
-            val n = detailed ?: firstNovel ?: return@stage skipped("chapters", "no novel to query")
-            val list = ops.chapters(n.url, concurrency = chapterConcurrency)
-            firstChapter = list.firstOrNull { !it.locked } ?: list.firstOrNull()
-            StageOutcome(Checks.chapters(list), mapOf("items" to list.size))
-        }
-
-        stages += stage("pages", target = firstChapter?.url) {
-            val c = firstChapter ?: return@stage skipped("pages", "no chapter to read")
-            if (c.locked) {
-                return@stage StageOutcome(listOf(Diagnostic("pages", Severity.INFO, "LOCKED", "only locked chapters available; skipping read")))
+        if (ops.source is EpubSource) {
+            // EPUB sources deliver the whole book as one file; getChapterList /
+            // getPageList are unused, so probe getEpub instead of chapters/pages.
+            stages += stage("epub", target = (detailed ?: firstNovel)?.url) {
+                val n = detailed ?: firstNovel ?: return@stage skipped("epub", "no novel to download")
+                val bytes = ops.epub(n.url)
+                StageOutcome(Checks.epub(bytes), mapOf("bytes" to bytes.size))
             }
-            val list = ops.pages(c.url)
-            StageOutcome(Checks.pages(list), mapOf("items" to list.size))
+        } else {
+            stages += stage("chapters", target = (detailed ?: firstNovel)?.url) {
+                val n = detailed ?: firstNovel ?: return@stage skipped("chapters", "no novel to query")
+                val list = ops.chapters(n.url, concurrency = chapterConcurrency)
+                firstChapter = list.firstOrNull { !it.locked } ?: list.firstOrNull()
+                StageOutcome(Checks.chapters(list), mapOf("items" to list.size))
+            }
+
+            stages += stage("pages", target = firstChapter?.url) {
+                val c = firstChapter ?: return@stage skipped("pages", "no chapter to read")
+                if (c.locked) {
+                    return@stage StageOutcome(listOf(Diagnostic("pages", Severity.INFO, "LOCKED", "only locked chapters available; skipping read")))
+                }
+                val list = ops.pages(c.url)
+                StageOutcome(Checks.pages(list), mapOf("items" to list.size))
+            }
         }
 
         stages += stage("latest") {

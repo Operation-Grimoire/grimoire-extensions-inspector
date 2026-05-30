@@ -83,6 +83,8 @@ class SourceOps(val ds: DiscoveredSource) {
 
     suspend fun pages(url: String): List<NovelPage> = source.getPageList(stubChapter(url))
 
+    suspend fun epub(url: String): ByteArray = (source as EpubSource).getEpub(stubNovel(url))
+
     fun prefs(): List<SourcePreference> = (source as? ConfigurableSource)?.getPreferences() ?: emptyList()
     fun setPrefs(values: Map<String, String>) = (source as? ConfigurableSource)?.setPreferences(values) ?: Unit
 
