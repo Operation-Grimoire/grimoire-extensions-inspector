@@ -114,6 +114,11 @@ export interface RunReport {
   totals: { sources: number; errors: number; warnings: number };
 }
 
+export interface EpubResult {
+  sizeBytes: number;
+  diagnostics: Diagnostic[];
+}
+
 export class ApiError extends Error {
   code: string;
   type?: string;
@@ -149,6 +154,9 @@ export const api = {
   chapters: (id: number, url: string, page?: number, concurrency?: number) =>
     post<Chapter[]>(`/api/sources/${id}/chapters`, { url, page, concurrency }),
   pages: (id: number, url: string) => post<Page[]>(`/api/sources/${id}/pages`, { url }),
+  epub: (id: number, url: string) => post<EpubResult>(`/api/sources/${id}/epub`, { url }),
+  epubDownloadUrl: (id: number, url: string) =>
+    `/api/sources/${id}/epub/download?url=${encodeURIComponent(url)}`,
   prefs: (id: number) => fetch(`/api/sources/${id}/prefs`).then((r) => parse<PrefDto[]>(r)),
   setPrefs: (id: number, values: Record<string, string>) =>
     post<{ ok: boolean }>(`/api/sources/${id}/prefs`, { values }),

@@ -4,7 +4,9 @@ import io.grimoire.api.network.CloudflareException
 import io.grimoire.inspector.DiscoveredSource
 import io.grimoire.inspector.SourceDiscovery
 import io.grimoire.inspector.engine.ApiError
+import io.grimoire.inspector.engine.Checks
 import io.grimoire.inspector.engine.CookiesReq
+import io.grimoire.inspector.engine.EpubResult
 import io.grimoire.inspector.engine.Inspector
 import io.grimoire.inspector.engine.LoginDto
 import io.grimoire.inspector.engine.NetworkUa
@@ -89,6 +91,23 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                         val o = resolve(byId) ?: return@post
                         val req = call.receive<UrlReq>()
                         call.guarded { call.respond(o.pages(req.url).map { it.toDto() }) }
+                    }
+                    post("/epub") {
+                        val o = resolve(byId) ?: return@post
+                        val req = call.receive<UrlReq>()
+                        call.guarded {
+                            val bytes = o.epub(req.url)
+                            call.respond(EpubResult(bytes.size, Checks.epub(bytes)))
+                        }
+                    }
+                    get("/epub/download") {
+                        val o = resolve(byId) ?: return@get
+                        val url = call.request.queryParameters["url"]
+                            ?: return@get call.respond(HttpStatusCode.BadRequest, ApiError("missing url", "BAD_REQUEST"))
+                        call.guarded {
+                            val bytes = o.epub(url)
+                            call.respondBytes(bytes, ContentType.parse("application/epub+zip"))
+                        }
                     }
                     get("/prefs") {
                         val o = resolve(byId) ?: return@get

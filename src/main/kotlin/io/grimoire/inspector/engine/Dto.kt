@@ -112,6 +112,10 @@ data class CookiesReq(val cookies: String, val url: String? = null)
 @Serializable
 data class UaReq(val userAgent: String = "")
 
+/** Result of downloading + validating an EpubSource book. */
+@Serializable
+data class EpubResult(val sizeBytes: Int, val diagnostics: List<Diagnostic>)
+
 @Serializable
 data class UaDto(val userAgent: String, val overridden: Boolean)
 

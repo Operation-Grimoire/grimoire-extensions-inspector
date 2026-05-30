@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Alert,
+  Anchor,
   Badge,
   Button,
   Code,
@@ -13,8 +14,8 @@ import {
   Text,
   UnstyledButton,
 } from "@mantine/core";
-import { api, Chapter, imgUrl, Novel } from "../api";
-import { useAsync, Spinner, ErrorBanner } from "../ui";
+import { api, Chapter, EpubResult, imgUrl, Novel } from "../api";
+import { useAsync, Spinner, ErrorBanner, errMsg } from "../ui";
 import { useSettings } from "../settings";
 import { useCurrentSource } from "./SourceLayout";
 
@@ -136,12 +137,63 @@ function Detail({ novel }: { novel: Novel }) {
         )}
       </div>
 
-      {!showChapters ? (
+      {source.capabilities.includes("EpubSource") ? (
+        <EpubSection url={novel.url} />
+      ) : !showChapters ? (
         <Button variant="default" w="fit-content" onClick={() => setShowChapters(true)}>
           Load chapters
         </Button>
       ) : (
         <Chapters url={novel.url} onRead={read} />
+      )}
+    </Stack>
+  );
+}
+
+const SEV_COLOR: Record<string, string> = { ERROR: "red", WARN: "yellow", INFO: "dimmed" };
+
+// EpubSource delivers the whole book as one file (no chapter list); download +
+// validate it instead of listing chapters.
+function EpubSection({ url }: { url: string }) {
+  const source = useCurrentSource();
+  const [res, setRes] = useState<EpubResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>();
+
+  const validate = async () => {
+    setLoading(true);
+    setError(undefined);
+    try {
+      setRes(await api.epub(source.id, url));
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Stack gap="xs">
+      <Group>
+        <Button variant="default" onClick={validate} loading={loading}>
+          Download &amp; validate EPUB
+        </Button>
+        <Anchor href={api.epubDownloadUrl(source.id, url)} download size="sm">
+          Save .epub
+        </Anchor>
+      </Group>
+      {error && <ErrorBanner msg={error} />}
+      {res && (
+        <Stack gap={2}>
+          <Text size="sm" c="dimmed">
+            {(res.sizeBytes / 1024).toFixed(1)} KB
+          </Text>
+          {res.diagnostics.map((d, i) => (
+            <Text key={i} size="sm" c={SEV_COLOR[d.severity] ?? "dimmed"}>
+              {d.severity} {d.code}: {d.message}
+            </Text>
+          ))}
+        </Stack>
       )}
     </Stack>
   );
