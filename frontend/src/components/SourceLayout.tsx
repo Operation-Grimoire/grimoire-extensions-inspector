@@ -40,7 +40,7 @@ export function SourceLayout() {
       case "filters":
         return browsable ? null : "source is not a CatalogueSource — nothing to browse";
       case "config":
-        return caps.includes("ConfigurableSource") || source.hosts.length > 0
+        return caps.includes("ConfigurableSource") || source.hosts.length > 0 || source.languages.length > 0
           ? null
           : "source has no configurable preferences";
       case "login":

@@ -8,6 +8,7 @@ import io.grimoire.inspector.engine.Checks
 import io.grimoire.inspector.engine.CookiesReq
 import io.grimoire.inspector.engine.EpubResult
 import io.grimoire.inspector.engine.HostReq
+import io.grimoire.inspector.engine.LanguagesReq
 import io.grimoire.inspector.engine.Inspector
 import io.grimoire.inspector.engine.LoginDto
 import io.grimoire.inspector.engine.NetworkUa
@@ -115,6 +116,12 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                         val req = call.receive<HostReq>()
                         o.setHost(req.host)
                         call.respond(mapOf("active" to (o.activeHost ?: "")))
+                    }
+                    post("/languages") {
+                        val o = resolve(byId) ?: return@post
+                        val req = call.receive<LanguagesReq>()
+                        o.setLanguages(req.languages.toSet())
+                        call.respond(mapOf("enabled" to req.languages))
                     }
                     get("/prefs") {
                         val o = resolve(byId) ?: return@get

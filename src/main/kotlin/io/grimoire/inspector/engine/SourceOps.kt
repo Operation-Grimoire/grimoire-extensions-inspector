@@ -37,11 +37,18 @@ class SourceOps(val ds: DiscoveredSource) {
     val catalogue: CatalogueSource? = source as? CatalogueSource
     private val multiHost: MultiHostSource? = source as? MultiHostSource
 
+    private val multiLang: MultiLanguageSource? = source as? MultiLanguageSource
+
     val hosts: List<String> get() = multiHost?.hosts ?: emptyList()
     val activeHost: String? get() = multiHost?.activeHost
 
     /** Pin the mirror to route through (blank resets to the first host). */
     fun setHost(host: String) = multiHost?.setActiveHost(host) ?: Unit
+
+    val languages: List<String> get() = multiLang?.availableLanguages() ?: emptyList()
+
+    /** Restrict browse/search to these languages (empty = no filter, all). */
+    fun setLanguages(langs: Set<String>) = multiLang?.setEnabledLanguages(langs) ?: Unit
 
     suspend fun popular(page: Int): List<Novel> = cat().getPopularNovels(page)
     suspend fun latest(page: Int): List<Novel> = cat().getLatestUpdates(page)
@@ -150,6 +157,7 @@ class SourceOps(val ds: DiscoveredSource) {
         supportsSearchWithFilters = catalogue?.supportsSearchWithFilters ?: false,
         hosts = hosts,
         activeHost = activeHost,
+        languages = languages,
     )
 
     private fun cat(): CatalogueSource =

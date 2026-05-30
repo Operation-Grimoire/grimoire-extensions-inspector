@@ -112,6 +112,10 @@ data class CookiesReq(val cookies: String, val url: String? = null)
 @Serializable
 data class HostReq(val host: String = "")
 
+/** Restrict a MultiLanguageSource to these languages; empty = all. */
+@Serializable
+data class LanguagesReq(val languages: List<String> = emptyList())
+
 /** Empty/blank `userAgent` clears the override and reverts to the default. */
 @Serializable
 data class UaReq(val userAgent: String = "")

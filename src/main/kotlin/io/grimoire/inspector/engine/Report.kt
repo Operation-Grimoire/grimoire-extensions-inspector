@@ -28,6 +28,7 @@ data class SourceMeta(
     val supportsSearchWithFilters: Boolean,
     val hosts: List<String> = emptyList(),
     val activeHost: String? = null,
+    val languages: List<String> = emptyList(),
 )
 
 @Serializable
