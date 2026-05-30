@@ -29,7 +29,7 @@ val includeX = (prop("includeX", "grimoireIncludeX"))?.toBoolean() ?: false
 // Only the tasks that actually need the sources should hard-fail when the path
 // is missing — `gradlew tasks`, `help`, etc. still work without it.
 val sourceHungryTasks = setOf(
-    "run", "compileKotlin", "compileJava", "classes", "build", "assemble",
+    "run", "serve", "compileKotlin", "compileJava", "classes", "build", "assemble",
     "jar", "installDist", "distZip", "distTar", "listSourceDirs",
 )
 val needsSources = gradle.startParameter.taskNames.any { it.substringAfterLast(':') in sourceHungryTasks }
@@ -106,6 +106,52 @@ kotlin {
 application {
     mainClass.set("io.grimoire.inspector.MainKt")
     applicationName = "inspector"
+}
+
+// ---- Frontend (React + Vite) -> bundled into the jar's web/ resources --------
+// The CLI never needs this; only `serve` (and packaging) build the UI, so plain
+// `run`/`list` stay Node-free for agents and CI.
+val isWindows = System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
+val frontendDir = layout.projectDirectory.dir("frontend")
+val frontendOut = layout.buildDirectory.dir("frontend")
+fun npm(vararg args: String): List<String> =
+    if (isWindows) listOf("cmd", "/c", "npm", *args) else listOf("npm", *args)
+
+val npmInstall = tasks.register<Exec>("npmInstall") {
+    workingDir = frontendDir.asFile
+    commandLine(npm("install"))
+    inputs.file(frontendDir.file("package.json"))
+    outputs.dir(frontendDir.dir("node_modules"))
+}
+
+val buildFrontend = tasks.register<Exec>("buildFrontend") {
+    group = "build"
+    description = "Compile the React/Vite web UI into build/frontend"
+    dependsOn(npmInstall)
+    workingDir = frontendDir.asFile
+    commandLine(npm("run", "build"))
+    inputs.dir(frontendDir.dir("src"))
+    inputs.file(frontendDir.file("index.html"))
+    inputs.file(frontendDir.file("vite.config.ts"))
+    inputs.file(frontendDir.file("package.json"))
+    outputs.dir(frontendOut)
+}
+
+// Fold the built UI into web/ when it exists; don't force the build on CLI tasks.
+tasks.named<Copy>("processResources") {
+    from(frontendOut) { into("web") }
+    mustRunAfter(buildFrontend)
+}
+
+// The web entrypoint: build the UI, then start the server (blocks).
+tasks.register<JavaExec>("serve") {
+    group = "application"
+    description = "Build the web UI and start the inspector server (-Pport=8080)"
+    dependsOn(buildFrontend)
+    mainClass.set("io.grimoire.inspector.MainKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    args("serve")
+    (findProperty("port") as String?)?.let { args("--port", it) }
 }
 
 // Print which extensions got wired in, for sanity.

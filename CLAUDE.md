@@ -27,9 +27,15 @@ EXT=/path/to/grimoire-extensions   # the repo you want to test
 ./gradlew -q run -Pext=$EXT --args="run --all --json"        # full suite, JSON (agents)
 ./gradlew -q run -Pext=$EXT --args="run --source novelfull"  # one source, human output
 ./gradlew -q run -Pext=$EXT --args="run --all --offline"     # no-network structural checks
-./gradlew    run -Pext=$EXT --args="serve --port 8080"       # web UI (blocks)
+./gradlew    serve -Pext=$EXT                                # web UI: build React app + serve (blocks)
+./gradlew    serve -Pext=$EXT -Pport=9090                    # …on a custom port
 ./gradlew    listSourceDirs -Pext=$EXT                       # show exactly what got wired in
 ```
+
+The `serve` task builds the React UI (`buildFrontend`, needs Node) and starts
+the server; plain `run`/`list` never touch Node, so the CLI stays usable for
+agents/CI without npm. `run --args="serve"` also works but serves the
+last-built UI (no rebuild).
 
 Optional path overrides (defaults derive from `-Pext`):
 `-Papi=<grimoire-extensions-api>`, `-Plib=<lib-root>`,
@@ -101,9 +107,32 @@ src/main/kotlin/io/grimoire/inspector/
     Checks.kt                          validations (covers, empty lists, blank pages…)
     Report.kt                          @Serializable report DTOs + Severity
     Dto.kt                             wire DTOs for the API models + mappers
-  web/Server.kt                        Ktor: JSON API + /img proxy + static SPA
-src/main/resources/web/                vanilla-JS frontend (index.html/app.js/styles.css)
+  web/Server.kt                        Ktor: JSON API + /img proxy + static SPA host
+frontend/                              React + TypeScript + Vite web UI (source of truth)
+  src/api.ts                           typed client + DTO types (mirror engine/Dto.kt)
+  src/App.tsx, src/ui.tsx              shell + shared hooks (useAsync) / widgets
+  src/components/                      SourceView / Browse / NovelModal / Filters / Config / Login / RunReport
+build/frontend/                        Vite output (generated) — folded into the jar's web/
 ```
+
+## Web UI (React + Vite)
+
+The frontend lives in `frontend/` (React 18 + TS). `buildFrontend` runs
+`npm install` + `vite build` → `build/frontend`, and `processResources` folds
+that into the jar's `web/`, which `web/Server.kt` serves via `staticResources`.
+The `serve` Gradle task chains `buildFrontend` then starts the server; it is the
+**only** path that needs Node — `run`/`list`/`compileKotlin` never build the
+frontend, so the CLI stays Node-free.
+
+- **Editing the UI:** change files under `frontend/src`, then `./gradlew serve …`
+  rebuilds the bundle. The JSON contract is `frontend/src/api.ts` ⇄
+  `engine/Dto.kt` / `Report.kt` — keep them in sync when you add an endpoint.
+- **Frontend hot reload (dev):** run the backend once
+  (`./gradlew serve -Pext=…` or `run --args="serve"`) and in parallel
+  `cd frontend && npm run dev`; open `http://localhost:5173` — Vite proxies
+  `/api` and `/img` to `:8080` and hot-reloads the UI on save.
+- The built bundle is generated, not committed (`build/` and
+  `frontend/node_modules` are gitignored).
 
 ## Extending it
 

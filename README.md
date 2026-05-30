@@ -71,17 +71,26 @@ For clean stdout (no Gradle noise), build a launcher once and call it directly:
 
 ### Web app
 
+A React + Vite UI (in `frontend/`), bundled into the server.
+
 ```bash
-./gradlew run -Pext=$EXT --args="serve --port 8080"
-# open http://localhost:8080
+./gradlew serve -Pext=$EXT            # builds the UI (needs Node) + serves
+# open http://localhost:8080          # custom port: -Pport=9090
 ```
 
 Browse a source like the app (cover grids via an image proxy, novel → chapters →
 reader, filter sheet, config + cookie-injection login panels), or click **Run
 full suite** for the pass/warn/fail report. The same JSON the UI uses is on
-`/api/*` (e.g. `curl localhost:8080/api/sources`).
+`/api/*` (e.g. `curl localhost:8080/api/sources`). The `serve` task is the only
+one that needs Node — `run`/`list` stay Node-free for agents/CI.
+
+**Frontend dev (hot reload):** run the backend (`./gradlew serve -Pext=$EXT`)
+and, in parallel, `cd frontend && npm run dev`; open `http://localhost:5173` —
+Vite proxies the API and hot-reloads on save.
 
 ## Hot reload
 
-Edit any extension / `lib` / API source and re-run — incremental Kotlin compile
-picks it up. No APK build, no install.
+- **Frontend:** `npm run dev` (above) — instant.
+- **Extension / lib / API code:** edit and re-run; incremental Kotlin compile
+  picks it up (no APK, no install). The running server doesn't swap classes —
+  restart `serve` to pick up source edits.
