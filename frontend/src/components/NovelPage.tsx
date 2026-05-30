@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Alert, Badge, Button, Group, Image, Stack, Text, Title, UnstyledButton } from "@mantine/core";
 import { api, Chapter, imgUrl, Novel } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
 import { useCurrentSource } from "./SourceLayout";
@@ -34,24 +35,32 @@ function Detail({ novel }: { novel: Novel }) {
     navigate(`/source/${source.id}/read?${q.toString()}`);
   };
 
+  const meta = [novel.author, novel.status, novel.genres.join(", ")].filter(Boolean).join(" · ");
+
   return (
-    <div>
-      <h2>{novel.title || "(untitled)"}</h2>
-      <div className="muted">
-        {[novel.author, novel.status, novel.genres.join(", ")].filter(Boolean).join(" · ")}
-      </div>
-      {novel.thumbnailUrl ? (
-        <img className="cover" src={imgUrl(source.id, novel.thumbnailUrl)} />
-      ) : (
-        <div className="banner warn">empty thumbnailUrl</div>
+    <Stack gap="sm">
+      <Title order={3}>{novel.title || "(untitled)"}</Title>
+      {meta && (
+        <Text c="dimmed" size="sm">
+          {meta}
+        </Text>
       )}
-      <p className="desc">{novel.description || "(no description)"}</p>
+      {novel.thumbnailUrl ? (
+        <Image src={imgUrl(source.id, novel.thumbnailUrl)} h={220} w="auto" radius="md" fit="contain" />
+      ) : (
+        <Alert color="yellow" variant="light">
+          empty thumbnailUrl
+        </Alert>
+      )}
+      <Text maw={720}>{novel.description || "(no description)"}</Text>
       {!showChapters ? (
-        <button onClick={() => setShowChapters(true)}>Load chapters</button>
+        <Button variant="default" w="fit-content" onClick={() => setShowChapters(true)}>
+          Load chapters
+        </Button>
       ) : (
         <Chapters url={novel.url} onRead={read} />
       )}
-    </div>
+    </Stack>
   );
 }
 
@@ -62,18 +71,32 @@ function Chapters({ url, onRead }: { url: string; onRead: (c: Chapter) => void }
   if (state.error) return <ErrorBanner msg={state.error} />;
   const list = state.data ?? [];
   return (
-    <div className="chapters">
-      <div className="muted small">{list.length} chapters</div>
+    <Stack gap={0}>
+      <Text c="dimmed" size="xs" mb="xs">
+        {list.length} chapters
+      </Text>
       {list.map((c, i) => (
-        <div
+        <UnstyledButton
           key={`${c.url}-${i}`}
-          className={`row${c.locked ? " locked-row" : ""}`}
           onClick={() => !c.locked && onRead(c)}
+          disabled={c.locked}
+          p="xs"
+          style={{
+            borderBottom: "1px solid var(--mantine-color-dark-4)",
+            cursor: c.locked ? "default" : "pointer",
+            opacity: c.locked ? 0.7 : 1,
+          }}
         >
-          <span>{c.name || "(unnamed)"}</span>
-          {c.locked && <span className="locked">locked</span>}
-        </div>
+          <Group justify="space-between">
+            <Text size="sm">{c.name || "(unnamed)"}</Text>
+            {c.locked && (
+              <Badge size="xs" color="yellow" variant="outline">
+                locked
+              </Badge>
+            )}
+          </Group>
+        </UnstyledButton>
       ))}
-    </div>
+    </Stack>
   );
 }

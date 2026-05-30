@@ -1,7 +1,15 @@
-import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Accordion, Anchor, Badge, Card, Group, Stack, Text } from "@mantine/core";
 import { api, Diagnostic, RunReport as Report, SourceReport, StageResult } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
+
+const STATUS_COLOR: Record<string, string> = {
+  ok: "green",
+  warn: "yellow",
+  error: "red",
+  skipped: "gray",
+  info: "gray",
+};
 
 export function RunReport() {
   const [sp] = useSearchParams();
@@ -9,82 +17,94 @@ export function RunReport() {
   const state = useAsync<Report>(() => api.run(sourceFilter), [sourceFilter]);
 
   return (
-    <div className="report">
-      <div className="toolbar">
-        {state.data && (
-          <span>
-            {state.data.totals.sources} sources ·{" "}
-            <span className="err">{state.data.totals.errors} errors</span> ·{" "}
-            <span className="warn">{state.data.totals.warnings} warnings</span> ·{" "}
-            {state.data.durationMs}ms
-          </span>
-        )}
-      </div>
+    <Stack gap="md">
+      {state.data && (
+        <Group gap="xs">
+          <Text>{state.data.totals.sources} sources</Text>
+          <Text c="red">· {state.data.totals.errors} errors</Text>
+          <Text c="yellow">· {state.data.totals.warnings} warnings</Text>
+          <Text c="dimmed">· {state.data.durationMs}ms</Text>
+        </Group>
+      )}
       {state.loading && <Spinner label="running suite (live network)…" />}
       {state.error && <ErrorBanner msg={state.error} />}
       {state.data?.sources.map((sr) => (
         <SourceCard key={sr.source.id} sr={sr} />
       ))}
-    </div>
+    </Stack>
   );
 }
 
 function SourceCard({ sr }: { sr: SourceReport }) {
+  const open = sr.stages.filter((s) => s.status === "error" || s.status === "warn").map((s) => s.stage);
   return (
-    <div className="srcReport">
-      <div className="h">
-        <span className={`dot ${sr.ok ? "ok" : "error"}`} />
-        <strong>
-          {sr.source.name} <span className="muted">({sr.source.lang})</span>
-        </strong>
-        <span className="muted small">
-          errors={sr.errors} warnings={sr.warnings}
-        </span>
-        <span className="spacer" />
-        <Link className="link" to={`/source/${sr.source.id}/popular`}>
+    <Card withBorder radius="md" padding="sm">
+      <Group justify="space-between" mb="xs">
+        <Group gap="xs">
+          <Badge variant="dot" color={sr.ok ? "green" : "red"} size="lg">
+            {sr.source.name}
+          </Badge>
+          <Text c="dimmed" size="sm">
+            ({sr.source.lang}) · errors={sr.errors} warnings={sr.warnings}
+          </Text>
+        </Group>
+        <Anchor component={Link} to={`/source/${sr.source.id}/popular`} size="sm">
           browse →
-        </Link>
-      </div>
-      {sr.stages.map((st) => (
-        <StageRow key={st.stage} st={st} />
-      ))}
-    </div>
+        </Anchor>
+      </Group>
+      <Accordion multiple defaultValue={open} variant="separated">
+        {sr.stages.map((st) => (
+          <StageItem key={st.stage} st={st} />
+        ))}
+      </Accordion>
+    </Card>
   );
 }
 
-function StageRow({ st }: { st: StageResult }) {
-  const [open, setOpen] = useState(st.status === "error" || st.status === "warn");
+function StageItem({ st }: { st: StageResult }) {
   const counts = Object.entries(st.counts)
     .map(([k, v]) => `${k}=${v}`)
     .join(" ");
   return (
-    <div className="stage">
-      <div className="h" onClick={() => setOpen((o) => !o)}>
-        <span className={`dot ${st.status}`} />
-        <strong>{st.stage}</strong>
-        <span className="muted small">
-          {st.status} {counts}
-        </span>
-      </div>
-      {open && st.diagnostics.length > 0 && (
-        <div className="diags">
-          {st.diagnostics.map((d, i) => (
-            <DiagRow key={i} d={d} />
-          ))}
-        </div>
-      )}
-    </div>
+    <Accordion.Item value={st.stage}>
+      <Accordion.Control>
+        <Group gap="xs">
+          <Badge variant="dot" color={STATUS_COLOR[st.status] ?? "gray"} size="sm">
+            {st.stage}
+          </Badge>
+          <Text c="dimmed" size="xs">
+            {st.status} {counts}
+          </Text>
+        </Group>
+      </Accordion.Control>
+      <Accordion.Panel>
+        {st.diagnostics.length > 0 ? (
+          <Stack gap={4}>
+            {st.diagnostics.map((d, i) => (
+              <DiagRow key={i} d={d} />
+            ))}
+          </Stack>
+        ) : (
+          <Text c="dimmed" size="xs">
+            no diagnostics
+          </Text>
+        )}
+      </Accordion.Panel>
+    </Accordion.Item>
   );
 }
 
 function DiagRow({ d }: { d: Diagnostic }) {
-  const cls = d.severity === "ERROR" ? "err" : d.severity === "WARN" ? "warn" : "info";
+  const color = d.severity === "ERROR" ? "red" : d.severity === "WARN" ? "yellow" : "dimmed";
   return (
-    <div className={cls}>
+    <Text size="sm" c={color}>
       {d.severity} {d.code}: {d.message}
       {d.samples.length > 0 && (
-        <span className="muted small"> — {d.samples.slice(0, 3).join(", ")}</span>
+        <Text span c="dimmed" size="xs">
+          {" "}
+          — {d.samples.slice(0, 3).join(", ")}
+        </Text>
       )}
-    </div>
+    </Text>
   );
 }

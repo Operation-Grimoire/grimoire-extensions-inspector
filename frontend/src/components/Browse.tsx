@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Alert, Button, Card, Center, Group, Image, SimpleGrid, Text, TextInput } from "@mantine/core";
 import { api, imgUrl, Novel } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
 import { useCurrentSource } from "./SourceLayout";
@@ -27,15 +28,16 @@ export function Browse({ mode }: { mode: Mode }) {
   return (
     <div>
       {mode === "Search" && (
-        <div className="toolbar">
-          <input
+        <Group mb="md">
+          <TextInput
             value={query}
             placeholder="search query…"
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.currentTarget.value)}
             onKeyDown={(e) => e.key === "Enter" && setSp({ q: query })}
+            style={{ flex: 1, maxWidth: 360 }}
           />
-          <button onClick={() => setSp({ q: query })}>Search</button>
-        </div>
+          <Button onClick={() => setSp({ q: query })}>Search</Button>
+        </Group>
       )}
       {state.loading && <Spinner />}
       {state.error && <ErrorBanner msg={state.error} />}
@@ -53,20 +55,27 @@ function Grid({
   sourceId: number;
   onOpen: (n: Novel) => void;
 }) {
-  if (list.length === 0) return <div className="banner warn">empty — 0 novels returned</div>;
+  if (list.length === 0)
+    return (
+      <Alert color="yellow" variant="light">
+        empty — 0 novels returned
+      </Alert>
+    );
   return (
     <>
-      <div className="muted small">{list.length} items</div>
-      <div className="grid">
+      <Text c="dimmed" size="xs" mb="xs">
+        {list.length} items
+      </Text>
+      <SimpleGrid cols={{ base: 2, xs: 3, sm: 4, lg: 6 }} spacing="md">
         {list.map((n, i) => (
-          <Card key={`${n.url}-${i}`} n={n} sourceId={sourceId} onOpen={onOpen} />
+          <NovelCard key={`${n.url}-${i}`} n={n} sourceId={sourceId} onOpen={onOpen} />
         ))}
-      </div>
+      </SimpleGrid>
     </>
   );
 }
 
-function Card({
+function NovelCard({
   n,
   sourceId,
   onOpen,
@@ -78,11 +87,24 @@ function Card({
   const [broken, setBroken] = useState(false);
   const noimg = broken || !n.thumbnailUrl;
   return (
-    <div className={`card${noimg ? " noimg" : ""}`} onClick={() => onOpen(n)} title={n.title}>
-      {n.thumbnailUrl && !broken && (
-        <img loading="lazy" src={imgUrl(sourceId, n.thumbnailUrl)} onError={() => setBroken(true)} />
-      )}
-      <div className="t">{n.title || "(untitled)"}</div>
-    </div>
+    <Card padding="xs" radius="md" withBorder onClick={() => onOpen(n)} style={{ cursor: "pointer" }} title={n.title}>
+      <Card.Section>
+        {noimg ? (
+          <Center h={180} c="pink.4" bg="dark.5">
+            no cover
+          </Center>
+        ) : (
+          <Image
+            src={imgUrl(sourceId, n.thumbnailUrl!)}
+            h={180}
+            loading="lazy"
+            onError={() => setBroken(true)}
+          />
+        )}
+      </Card.Section>
+      <Text size="xs" mt={6} lineClamp={2}>
+        {n.title || "(untitled)"}
+      </Text>
+    </Card>
   );
 }

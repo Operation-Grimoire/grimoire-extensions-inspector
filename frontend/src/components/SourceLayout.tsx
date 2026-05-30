@@ -1,4 +1,5 @@
-import { Link, NavLink, Outlet, useOutletContext, useParams } from "react-router-dom";
+import { Link, Outlet, useLocation, useOutletContext, useParams } from "react-router-dom";
+import { Anchor, Button, Group, Stack, Tabs, Text, Title } from "@mantine/core";
 import { SourceMeta } from "../api";
 import { Badge, Spinner } from "../ui";
 import { useSource, useSources } from "../sources";
@@ -17,45 +18,51 @@ export function SourceLayout() {
   const { id } = useParams();
   const sources = useSources();
   const source = useSource(Number(id));
+  const { pathname } = useLocation();
+  const activeTab = pathname.split("/")[3];
 
   if (!source) {
     if (sources.loading) return <Spinner />;
-    return <div className="pad muted">Unknown source “{id}”.</div>;
+    return <Text c="dimmed">Unknown source “{id}”.</Text>;
   }
 
   // key on id so per-tab/page state resets when switching sources.
   return (
-    <div className="sourceView" key={source.id}>
-      <div className="sourceHead">
-        <div className="row-between">
-          <h2>{source.name}</h2>
-          <Link className="btn" to={`/run?source=${source.id}`}>
+    <Stack key={source.id} gap="md">
+      <Stack gap={4}>
+        <Group justify="space-between" wrap="nowrap">
+          <Title order={3}>{source.name}</Title>
+          <Button component={Link} to={`/run?source=${source.id}`} variant="default" size="xs">
             Run suite on this source
-          </Link>
-        </div>
-        <div className="muted">
-          {source.lang} · {source.baseUrl} · v{source.versionCode}
-        </div>
-        <div className="badges">
+          </Button>
+        </Group>
+        <Text c="dimmed" size="sm">
+          {source.lang} ·{" "}
+          <Anchor href={source.baseUrl} target="_blank" rel="noreferrer">
+            {source.baseUrl}
+          </Anchor>{" "}
+          · v{source.versionCode}
+        </Text>
+        <Group gap={6}>
           {source.capabilities.map((c) => (
             <Badge key={c}>{c}</Badge>
           ))}
           {source.hasDynamicFilters && <Badge>dynamicFilters</Badge>}
-        </div>
-      </div>
+        </Group>
+      </Stack>
 
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <NavLink key={t} to={t} className={({ isActive }) => (isActive ? "active" : "")}>
-            {LABEL[t]}
-          </NavLink>
-        ))}
-      </nav>
+      <Tabs value={activeTab ?? null}>
+        <Tabs.List>
+          {TABS.map((t) => (
+            <Tabs.Tab key={t} value={t} renderRoot={(props) => <Link to={t} {...props} />}>
+              {LABEL[t]}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+      </Tabs>
 
-      <div className="tabBody">
-        <Outlet context={source} />
-      </div>
-    </div>
+      <Outlet context={source} />
+    </Stack>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Button, Group, PasswordInput, Stack, Switch, Text, TextInput } from "@mantine/core";
 import { api, PrefDto } from "../api";
 import { useAsync, Spinner, ErrorBanner, errMsg } from "../ui";
 import { useCurrentSource } from "./SourceLayout";
@@ -20,8 +21,9 @@ export function Config() {
   if (state.loading) return <Spinner />;
   if (state.error) return <ErrorBanner msg={state.error} />;
   const prefs = state.data ?? [];
-  if (prefs.length === 0)
-    return <div className="muted pad">this source has no configurable preferences</div>;
+  if (prefs.length === 0) return <Text c="dimmed">this source has no configurable preferences</Text>;
+
+  const set = (key: string, val: string) => setValues((v) => ({ ...v, [key]: val }));
 
   const apply = async () => {
     try {
@@ -33,33 +35,47 @@ export function Config() {
   };
 
   return (
-    <div>
+    <Stack gap="md">
       {prefs.map((p) => (
-        <div className="row pref" key={p.key}>
+        <Group key={p.key} justify="space-between" align="flex-start" wrap="nowrap">
           <div>
-            <strong>{p.title}</strong>
-            <div className="muted small">{p.summary || p.key}</div>
+            <Text fw={600} size="sm">
+              {p.title}
+            </Text>
+            <Text c="dimmed" size="xs">
+              {p.summary || p.key}
+            </Text>
           </div>
           {p.type === "switch" ? (
-            <input
-              type="checkbox"
+            <Switch
               checked={values[p.key] === "true"}
-              onChange={(e) => setValues((v) => ({ ...v, [p.key]: String(e.target.checked) }))}
+              onChange={(e) => set(p.key, String(e.currentTarget.checked))}
             />
-          ) : (
-            <input
-              type={p.isPassword ? "password" : "text"}
+          ) : p.isPassword ? (
+            <PasswordInput
               placeholder={p.default}
               value={values[p.key] ?? ""}
-              onChange={(e) => setValues((v) => ({ ...v, [p.key]: e.target.value }))}
+              onChange={(e) => set(p.key, e.currentTarget.value)}
+              style={{ minWidth: 240 }}
+            />
+          ) : (
+            <TextInput
+              placeholder={p.default}
+              value={values[p.key] ?? ""}
+              onChange={(e) => set(p.key, e.currentTarget.value)}
+              style={{ minWidth: 240 }}
             />
           )}
-        </div>
+        </Group>
       ))}
-      <div className="toolbar">
-        <button onClick={apply}>Apply preferences</button>
-        {status && <span className="muted small">{status}</span>}
-      </div>
-    </div>
+      <Group>
+        <Button onClick={apply}>Apply preferences</Button>
+        {status && (
+          <Text c="dimmed" size="sm">
+            {status}
+          </Text>
+        )}
+      </Group>
+    </Stack>
   );
 }

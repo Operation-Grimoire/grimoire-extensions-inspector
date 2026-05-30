@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Alert, Badge as MBadge, Group, Loader, Text } from "@mantine/core";
 import { ApiError } from "./api";
 
 export interface AsyncState<T> {
@@ -41,20 +42,39 @@ export function errMsg(e: unknown): string {
 }
 
 export function Spinner({ label = "loading…" }: { label?: string }) {
-  return <div className="muted pad">{label}</div>;
+  return (
+    <Group gap="xs" py="md">
+      <Loader size="sm" />
+      <Text c="dimmed" size="sm">
+        {label}
+      </Text>
+    </Group>
+  );
 }
 
 export function ErrorBanner({ msg }: { msg: string }) {
   const cf = /CLOUDFLARE/i.test(msg);
   return (
-    <div className={cf ? "banner warn" : "banner err"}>
-      {cf ? "☁ " : "⚠ "}
+    <Alert
+      my="sm"
+      color={cf ? "yellow" : "red"}
+      title={cf ? "Cloudflare blocked" : "Error"}
+      variant="light"
+    >
       {msg}
-      {cf && <div className="muted small">Open the Login tab to paste session cookies.</div>}
-    </div>
+      {cf && (
+        <Text size="xs" c="dimmed" mt={4}>
+          Open the Login tab to paste session cookies.
+        </Text>
+      )}
+    </Alert>
   );
 }
 
 export function Badge({ children }: { children: React.ReactNode }) {
-  return <span className="badge">{children}</span>;
+  return (
+    <MBadge variant="light" color="gray" radius="sm">
+      {children}
+    </MBadge>
+  );
 }

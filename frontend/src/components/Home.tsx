@@ -1,7 +1,9 @@
+import { Text } from "@mantine/core";
+
 export function Home() {
   return (
-    <div className="pad muted">
+    <Text c="dimmed">
       Pick a source to browse it like the app, or “Run full suite” for the debugger report.
-    </div>
+    </Text>
   );
 }

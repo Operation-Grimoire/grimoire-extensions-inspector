@@ -110,9 +110,10 @@ src/main/kotlin/io/grimoire/inspector/
   web/Server.kt                        Ktor: JSON API + /img proxy + SPA host (index.html fallback)
 frontend/                              React + TypeScript + Vite web UI (source of truth)
   src/api.ts                           typed client + DTO types (mirror engine/Dto.kt)
-  src/main.tsx                         entry: wraps <App/> in <BrowserRouter>
+  src/main.tsx                         entry: <MantineProvider> + <BrowserRouter> + <App/>
+  src/theme.ts                         Mantine theme (dark-only, indigo accent)
   src/App.tsx                          react-router route table (see "Routing" below)
-  src/ui.tsx                           shared hooks (useAsync) / widgets
+  src/ui.tsx                           shared hooks (useAsync) + Mantine-backed widgets
   src/sources.tsx                      SourcesProvider context (sources fetched once, shared)
   src/components/                      Layout / SourceLayout / Home / Browse / NovelPage /
                                        ReaderPage / Filters / Config / Login / RunReport
@@ -121,7 +122,15 @@ build/frontend/                        Vite output (generated) — folded into t
 
 ## Web UI (React + Vite)
 
-The frontend lives in `frontend/` (React 18 + TS + `react-router-dom` v6).
+The frontend lives in `frontend/` (React 18 + TS + `react-router-dom` v6 +
+**Mantine v8** for components). Mantine owns the reset, dark theme, and all
+widgets — `main.tsx` imports `@mantine/core/styles.css` and wraps the app in
+`<MantineProvider theme={theme} forceColorScheme="dark">`; `src/theme.ts` holds
+the theme; `postcss.config.cjs` wires `postcss-preset-mantine`. `src/styles.css`
+is now near-empty (just full-height `html/body/#root`); do component styling with
+Mantine props/`Stack`/`Group`, not bespoke CSS. Pass router `Link`s to Mantine
+via `component={Link}` (or `renderRoot={(p) => <Link … {...p} />}` for
+`Tabs.Tab`, whose props TS won't otherwise widen).
 `buildFrontend` runs `npm install` + `vite build` → `build/frontend`, and
 `processResources` folds that into the jar's `web/`, which `web/Server.kt` serves
 via Ktor `singlePageApplication` (static files + `index.html` fallback for deep

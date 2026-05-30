@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from "react-router-dom";
+import { Button, Divider, Group, Image, Stack, Text, Title } from "@mantine/core";
 import { api, imgUrl, Page } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
 import { useCurrentSource } from "./SourceLayout";
@@ -18,30 +19,41 @@ export function ReaderPage() {
     : `/source/${source.id}/popular`;
 
   return (
-    <div>
-      <div className="toolbar">
-        <Link className="btn" to={backTo}>
+    <Stack gap="sm">
+      <Group>
+        <Button component={Link} to={backTo} variant="default" size="xs">
           ← chapters
-        </Link>
-        <strong>{name}</strong>
-      </div>
+        </Button>
+        <Title order={4}>{name}</Title>
+      </Group>
       {state.loading && <Spinner label="loading pages…" />}
       {state.error && <ErrorBanner msg={state.error} />}
       {state.data && (
-        <div className="reader">
-          <div className="muted small">{state.data.length} pages</div>
+        <Stack gap="sm" maw={720}>
+          <Text c="dimmed" size="xs">
+            {state.data.length} pages
+          </Text>
           {state.data.map((p) => (
             <PageView key={p.index} page={p} sourceId={source.id} />
           ))}
-        </div>
+        </Stack>
       )}
-    </div>
+    </Stack>
   );
 }
 
 function PageView({ page, sourceId }: { page: Page; sourceId: number }) {
-  if (page.imageUrl) return <img className="pageImg" src={imgUrl(sourceId, page.imageUrl)} />;
-  if (page.formattedText) return <p dangerouslySetInnerHTML={{ __html: page.formattedText }} />;
-  if (page.isSeparator) return <hr />;
-  return <p>{page.text || <span className="err">⚠ empty page</span>}</p>;
+  if (page.imageUrl) return <Image src={imgUrl(sourceId, page.imageUrl)} />;
+  if (page.formattedText)
+    return <Text component="div" dangerouslySetInnerHTML={{ __html: page.formattedText }} />;
+  if (page.isSeparator) return <Divider />;
+  return (
+    <Text>
+      {page.text || (
+        <Text span c="red">
+          ⚠ empty page
+        </Text>
+      )}
+    </Text>
+  );
 }

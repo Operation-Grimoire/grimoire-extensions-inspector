@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Anchor, Button, Code, Group, Stack, Text, Textarea } from "@mantine/core";
 import { api, LoginDto } from "../api";
 import { useAsync, Spinner, ErrorBanner, errMsg } from "../ui";
 import { useCurrentSource } from "./SourceLayout";
@@ -13,7 +14,7 @@ export function Login() {
   if (state.error) return <ErrorBanner msg={state.error} />;
   const info = state.data;
   if (!info || (info.loginUrl == null && info.isLoggedIn == null))
-    return <div className="muted pad">this source has no WebView login</div>;
+    return <Text c="dimmed">this source has no WebView login</Text>;
 
   const inject = async () => {
     try {
@@ -25,37 +26,43 @@ export function Login() {
   };
 
   return (
-    <div className="login">
-      <div className="row">
-        loginUrl:&nbsp;
+    <Stack gap="sm" maw={640}>
+      <Text size="sm">
+        loginUrl:{" "}
         {info.loginUrl ? (
-          <a href={info.loginUrl} target="_blank" rel="noreferrer">
+          <Anchor href={info.loginUrl} target="_blank" rel="noreferrer">
             {info.loginUrl}
-          </a>
+          </Anchor>
         ) : (
           "—"
         )}
-      </div>
-      <div className="row">
-        isLoggedIn:&nbsp;
-        <span className={info.isLoggedIn ? "ok" : "warn"}>{String(info.isLoggedIn)}</span>
-      </div>
-      <p className="muted small pad">
+      </Text>
+      <Text size="sm">
+        isLoggedIn:{" "}
+        <Text span c={info.isLoggedIn ? "green" : "yellow"}>
+          {String(info.isLoggedIn)}
+        </Text>
+      </Text>
+      <Text c="dimmed" size="xs">
         Headless can’t run the interactive WebView login. Paste session cookies captured from a
-        browser (<code>name=value; name2=value2</code>) to exercise login-gated calls:
-      </p>
-      <textarea
+        browser (<Code>name=value; name2=value2</Code>) to exercise login-gated calls:
+      </Text>
+      <Textarea
         rows={3}
         placeholder="cf_clearance=…; sessionid=…"
         value={cookies}
-        onChange={(e) => setCookies(e.target.value)}
+        onChange={(e) => setCookies(e.currentTarget.value)}
       />
-      <div className="toolbar">
-        <button onClick={inject} disabled={!cookies.trim()}>
+      <Group>
+        <Button onClick={inject} disabled={!cookies.trim()}>
           Inject cookies
-        </button>
-        {status && <span className="muted small">{status}</span>}
-      </div>
-    </div>
+        </Button>
+        {status && (
+          <Text c="dimmed" size="sm">
+            {status}
+          </Text>
+        )}
+      </Group>
+    </Stack>
   );
 }
