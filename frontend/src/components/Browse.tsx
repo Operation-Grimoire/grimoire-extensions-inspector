@@ -1,26 +1,28 @@
 import { useState } from "react";
-import { api, imgUrl, Novel, SourceMeta } from "../api";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { api, imgUrl, Novel } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
+import { useCurrentSource } from "./SourceLayout";
 
 type Mode = "Popular" | "Latest" | "Search";
 
-export function Browse({
-  source,
-  mode,
-  onOpen,
-}: {
-  source: SourceMeta;
-  mode: Mode;
-  onOpen: (n: Novel) => void;
-}) {
-  const [query, setQuery] = useState("the");
-  const [submitted, setSubmitted] = useState("the");
+export function Browse({ mode }: { mode: Mode }) {
+  const source = useCurrentSource();
+  const navigate = useNavigate();
+  const [sp, setSp] = useSearchParams();
+  const submitted = sp.get("q") ?? "the";
+  const [query, setQuery] = useState(submitted);
 
   const state = useAsync<Novel[]>(() => {
     if (mode === "Popular") return api.popular(source.id);
     if (mode === "Latest") return api.latest(source.id);
     return api.search(source.id, submitted);
   }, [source.id, mode, submitted]);
+
+  const openNovel = (n: Novel) =>
+    navigate(
+      `/source/${source.id}/novel?u=${encodeURIComponent(n.url)}&t=${encodeURIComponent(n.title || "")}`,
+    );
 
   return (
     <div>
@@ -30,14 +32,14 @@ export function Browse({
             value={query}
             placeholder="search query…"
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && setSubmitted(query)}
+            onKeyDown={(e) => e.key === "Enter" && setSp({ q: query })}
           />
-          <button onClick={() => setSubmitted(query)}>Search</button>
+          <button onClick={() => setSp({ q: query })}>Search</button>
         </div>
       )}
       {state.loading && <Spinner />}
       {state.error && <ErrorBanner msg={state.error} />}
-      {state.data && <Grid list={state.data} sourceId={source.id} onOpen={onOpen} />}
+      {state.data && <Grid list={state.data} sourceId={source.id} onOpen={openNovel} />}
     </div>
   );
 }

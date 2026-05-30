@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { api, PrefDto, SourceMeta } from "../api";
+import { api, PrefDto } from "../api";
 import { useAsync, Spinner, ErrorBanner, errMsg } from "../ui";
+import { useCurrentSource } from "./SourceLayout";
 
-export function Config({ source }: { source: SourceMeta }) {
+export function Config() {
+  const source = useCurrentSource();
   const state = useAsync<PrefDto[]>(() => api.prefs(source.id), [source.id]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<string>();

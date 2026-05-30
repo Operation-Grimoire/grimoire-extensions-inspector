@@ -21,7 +21,7 @@ import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
-import io.ktor.server.http.content.staticResources
+import io.ktor.server.http.content.singlePageApplication
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -150,8 +150,13 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                 }
             }
 
-            // Static SPA from resources/web/.
-            staticResources("/", "web")
+            // Static SPA from resources/web/, with index.html fallback so deep
+            // client-side routes (e.g. /source/5/popular) load under BrowserRouter.
+            singlePageApplication {
+                useResources = true
+                filesPath = "web"
+                defaultPage = "index.html"
+            }
         }
     }.start(wait = true)
 }

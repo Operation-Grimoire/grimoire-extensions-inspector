@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { api, LoginDto, SourceMeta } from "../api";
+import { api, LoginDto } from "../api";
 import { useAsync, Spinner, ErrorBanner, errMsg } from "../ui";
+import { useCurrentSource } from "./SourceLayout";
 
-export function Login({ source }: { source: SourceMeta }) {
+export function Login() {
+  const source = useCurrentSource();
   const state = useAsync<LoginDto>(() => api.login(source.id), [source.id]);
   const [cookies, setCookies] = useState("");
   const [status, setStatus] = useState<string>();

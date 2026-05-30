@@ -107,22 +107,41 @@ src/main/kotlin/io/grimoire/inspector/
     Checks.kt                          validations (covers, empty lists, blank pages…)
     Report.kt                          @Serializable report DTOs + Severity
     Dto.kt                             wire DTOs for the API models + mappers
-  web/Server.kt                        Ktor: JSON API + /img proxy + static SPA host
+  web/Server.kt                        Ktor: JSON API + /img proxy + SPA host (index.html fallback)
 frontend/                              React + TypeScript + Vite web UI (source of truth)
   src/api.ts                           typed client + DTO types (mirror engine/Dto.kt)
-  src/App.tsx, src/ui.tsx              shell + shared hooks (useAsync) / widgets
-  src/components/                      SourceView / Browse / NovelModal / Filters / Config / Login / RunReport
+  src/main.tsx                         entry: wraps <App/> in <BrowserRouter>
+  src/App.tsx                          react-router route table (see "Routing" below)
+  src/ui.tsx                           shared hooks (useAsync) / widgets
+  src/sources.tsx                      SourcesProvider context (sources fetched once, shared)
+  src/components/                      Layout / SourceLayout / Home / Browse / NovelPage /
+                                       ReaderPage / Filters / Config / Login / RunReport
 build/frontend/                        Vite output (generated) — folded into the jar's web/
 ```
 
 ## Web UI (React + Vite)
 
-The frontend lives in `frontend/` (React 18 + TS). `buildFrontend` runs
-`npm install` + `vite build` → `build/frontend`, and `processResources` folds
-that into the jar's `web/`, which `web/Server.kt` serves via `staticResources`.
-The `serve` Gradle task chains `buildFrontend` then starts the server; it is the
-**only** path that needs Node — `run`/`list`/`compileKotlin` never build the
-frontend, so the CLI stays Node-free.
+The frontend lives in `frontend/` (React 18 + TS + `react-router-dom` v6).
+`buildFrontend` runs `npm install` + `vite build` → `build/frontend`, and
+`processResources` folds that into the jar's `web/`, which `web/Server.kt` serves
+via Ktor `singlePageApplication` (static files + `index.html` fallback for deep
+routes). The `serve` Gradle task chains `buildFrontend` then starts the server;
+it is the **only** path that needs Node — `run`/`list`/`compileKotlin` never
+build the frontend, so the CLI stays Node-free.
+
+### Routing
+
+`BrowserRouter` with real URLs (no modals), so every view is bookmarkable and the
+header shows breadcrumbs. Routes (`src/App.tsx`):
+- `/` — home placeholder · `/run?source=<id|name>` — suite report (filterable)
+- `/source/:id` — `SourceLayout` (head + tab nav + `<Outlet/>`; passes the
+  `SourceMeta` to children via `useOutletContext`/`useCurrentSource`)
+  - `popular` · `latest` · `search?q=<q>` · `filters` · `config` · `login`
+  - `novel?u=<url>&t=<title>` — `NovelPage` (detail + chapters)
+  - `read?u=<chapterUrl>&t=<name>&nu=<novelUrl>&nt=<novelTitle>` — `ReaderPage`
+    (`nu`/`nt` let the reader + breadcrumb link back to the novel)
+URL params carry the source-defined `url`/`query` strings; `vite.config.ts` uses
+`base: "/"` so absolute `/assets/…` paths resolve on deep routes.
 
 - **Editing the UI:** change files under `frontend/src`, then `./gradlew serve …`
   rebuilds the bundle. The JSON contract is `frontend/src/api.ts` ⇄

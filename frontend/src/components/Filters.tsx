@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { api, FilterDto, SourceMeta } from "../api";
+import { api, FilterDto } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
+import { useCurrentSource } from "./SourceLayout";
 
-export function Filters({ source }: { source: SourceMeta }) {
+export function Filters() {
+  const source = useCurrentSource();
   const [fetchDynamic, setFetchDynamic] = useState(false);
   const state = useAsync<FilterDto[]>(
     () => api.filters(source.id, fetchDynamic),

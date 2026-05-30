@@ -1,22 +1,16 @@
 import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, Diagnostic, RunReport as Report, SourceReport, StageResult } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
 
-export function RunReport({
-  sourceFilter,
-  onClose,
-  onJump,
-}: {
-  sourceFilter?: string;
-  onClose: () => void;
-  onJump: (id: number) => void;
-}) {
+export function RunReport() {
+  const [sp] = useSearchParams();
+  const sourceFilter = sp.get("source") ?? undefined;
   const state = useAsync<Report>(() => api.run(sourceFilter), [sourceFilter]);
 
   return (
     <div className="report">
       <div className="toolbar">
-        <button onClick={onClose}>← back</button>
         {state.data && (
           <span>
             {state.data.totals.sources} sources ·{" "}
@@ -29,13 +23,13 @@ export function RunReport({
       {state.loading && <Spinner label="running suite (live network)…" />}
       {state.error && <ErrorBanner msg={state.error} />}
       {state.data?.sources.map((sr) => (
-        <SourceCard key={sr.source.id} sr={sr} onJump={() => onJump(sr.source.id)} />
+        <SourceCard key={sr.source.id} sr={sr} />
       ))}
     </div>
   );
 }
 
-function SourceCard({ sr, onJump }: { sr: SourceReport; onJump: () => void }) {
+function SourceCard({ sr }: { sr: SourceReport }) {
   return (
     <div className="srcReport">
       <div className="h">
@@ -47,9 +41,9 @@ function SourceCard({ sr, onJump }: { sr: SourceReport; onJump: () => void }) {
           errors={sr.errors} warnings={sr.warnings}
         </span>
         <span className="spacer" />
-        <button className="link" onClick={onJump}>
+        <Link className="link" to={`/source/${sr.source.id}/popular`}>
           browse →
-        </button>
+        </Link>
       </div>
       {sr.stages.map((st) => (
         <StageRow key={st.stage} st={st} />
@@ -88,7 +82,9 @@ function DiagRow({ d }: { d: Diagnostic }) {
   return (
     <div className={cls}>
       {d.severity} {d.code}: {d.message}
-      {d.samples.length > 0 && <span className="muted small"> — {d.samples.slice(0, 3).join(", ")}</span>}
+      {d.samples.length > 0 && (
+        <span className="muted small"> — {d.samples.slice(0, 3).join(", ")}</span>
+      )}
     </div>
   );
 }
