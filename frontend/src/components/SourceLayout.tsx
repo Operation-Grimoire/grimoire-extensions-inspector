@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useOutletContext, useParams } from "react-router-dom";
-import { Anchor, Button, Group, Stack, Tabs, Text, Title } from "@mantine/core";
+import { Anchor, Box, Button, Group, Stack, Tabs, Text, Title, Tooltip } from "@mantine/core";
 import { SourceMeta } from "../api";
 import { Badge, Spinner } from "../ui";
 import { useSource, useSources } from "../sources";
@@ -26,6 +26,27 @@ export function SourceLayout() {
     if (sources.loading) return <Spinner />;
     return <Text c="dimmed">Unknown source “{id}”.</Text>;
   }
+
+  // Tabs a source can't serve are greyed out with a reason. Capabilities come
+  // from the @SourceInfo scan (see SourceOps.capabilities); Cookies always
+  // applies (any source can be cookie/Cloudflare-gated).
+  const caps = source.capabilities;
+  const browsable = caps.includes("CatalogueSource");
+  const disabledReason = (t: (typeof TABS)[number]): string | null => {
+    switch (t) {
+      case "popular":
+      case "latest":
+      case "search":
+      case "filters":
+        return browsable ? null : "source is not a CatalogueSource — nothing to browse";
+      case "config":
+        return caps.includes("ConfigurableSource") ? null : "source has no configurable preferences";
+      case "login":
+        return caps.includes("WebViewLoginSource") ? null : "source has no WebView login";
+      default:
+        return null;
+    }
+  };
 
   // key on id so per-tab/page state resets when switching sources.
   return (
@@ -54,11 +75,25 @@ export function SourceLayout() {
 
       <Tabs value={activeTab ?? null}>
         <Tabs.List>
-          {TABS.map((t) => (
-            <Tabs.Tab key={t} value={t} renderRoot={(props) => <Link to={t} {...props} />}>
-              {LABEL[t]}
-            </Tabs.Tab>
-          ))}
+          {TABS.map((t) => {
+            const reason = disabledReason(t);
+            if (reason) {
+              return (
+                <Tooltip key={t} label={reason} withArrow>
+                  <Box component="span" style={{ display: "inline-flex" }}>
+                    <Tabs.Tab value={t} disabled>
+                      {LABEL[t]}
+                    </Tabs.Tab>
+                  </Box>
+                </Tooltip>
+              );
+            }
+            return (
+              <Tabs.Tab key={t} value={t} renderRoot={(props) => <Link to={t} {...props} />}>
+                {LABEL[t]}
+              </Tabs.Tab>
+            );
+          })}
         </Tabs.List>
       </Tabs>
 
