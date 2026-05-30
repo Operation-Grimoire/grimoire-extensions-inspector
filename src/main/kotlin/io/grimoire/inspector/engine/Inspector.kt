@@ -5,6 +5,7 @@ import io.grimoire.api.model.Filter
 import io.grimoire.api.model.Novel
 import io.grimoire.api.network.CloudflareException
 import io.grimoire.api.source.ConfigurableSource
+import io.grimoire.api.source.MultiLanguageSource
 import io.grimoire.api.source.WebViewLoginSource
 import io.grimoire.inspector.DiscoveredSource
 import kotlinx.coroutines.TimeoutCancellationException
@@ -69,7 +70,7 @@ class Inspector(
             val n = firstNovel ?: return@stage skipped("details", "no novel from popular")
             val d = ops.details(n.url)
             detailed = d
-            StageOutcome(Checks.details(d))
+            StageOutcome(Checks.details(d, multiLang = ops.source is MultiLanguageSource))
         }
 
         stages += stage("chapters", target = (detailed ?: firstNovel)?.url) {

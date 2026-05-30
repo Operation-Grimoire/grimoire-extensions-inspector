@@ -36,7 +36,7 @@ object Checks {
         return diags
     }
 
-    fun details(n: Novel): List<Diagnostic> = buildList {
+    fun details(n: Novel, multiLang: Boolean = false): List<Diagnostic> = buildList {
         if (n.title.isBlank()) add(Diagnostic("details", Severity.WARN, "TITLE_EMPTY", "detail page has a blank title", samples = listOf(n.url)))
         if (n.thumbnailUrl.isNullOrBlank()) add(Diagnostic("details", Severity.WARN, "THUMBNAIL_EMPTY", "detail page has an empty thumbnailUrl", samples = listOf(n.url)))
         if (n.description.isNullOrBlank()) add(Diagnostic("details", Severity.WARN, "DESCRIPTION_EMPTY", "detail page has an empty description"))
@@ -44,7 +44,10 @@ object Checks {
         if (n.genres.isEmpty()) add(Diagnostic("details", Severity.WARN, "GENRES_EMPTY", "detail page has no genres"))
         if (n.status == NovelStatus.UNKNOWN) add(Diagnostic("details", Severity.INFO, "STATUS_UNKNOWN", "novel.status=UNKNOWN (not parsed)"))
         if (n.rating == null) add(Diagnostic("details", Severity.INFO, "RATING_EMPTY", "novel.rating is null (no rating parsed)"))
-        if (n.language.isNullOrBlank()) add(Diagnostic("details", Severity.INFO, "LANGUAGE_EMPTY", "novel.language is null"))
+        if (n.language.isNullOrBlank()) {
+            if (multiLang) add(Diagnostic("details", Severity.ERROR, "LANGUAGE_REQUIRED", "multi-language source left novel.language null — host can't tell which language this is"))
+            else add(Diagnostic("details", Severity.INFO, "LANGUAGE_EMPTY", "novel.language is null"))
+        }
         if (!n.initialized) add(Diagnostic("details", Severity.INFO, "NOT_INITIALIZED", "novel.initialized=false (host treats it as a stub)"))
     }
 
@@ -76,10 +79,19 @@ object Checks {
             "chapters", Severity.WARN, "CHAPTER_NUMBER_UNSET",
             "no chapter has a chapterNumber (all -1) — host can't order/track by number",
         )
-        if (list.all { it.uploadDate == 0L }) diags += Diagnostic(
-            "chapters", Severity.INFO, "UPLOAD_DATE_MISSING",
-            "no chapter has an uploadDate (all 0)",
-        )
+        val noDate = list.withIndex().filter { it.value.uploadDate == 0L }
+        when {
+            noDate.size == list.size -> diags += Diagnostic(
+                "chapters", Severity.INFO, "UPLOAD_DATE_MISSING",
+                "no chapter has an uploadDate (all 0)", list.size,
+            )
+            noDate.isNotEmpty() -> diags += Diagnostic(
+                "chapters", Severity.WARN, "UPLOAD_DATE_PARTIAL",
+                "${noDate.size}/${list.size} chapters have no uploadDate while others do (inconsistent parse)",
+                noDate.size,
+                noDate.take(SAMPLE).map { "#${it.index} ${it.value.name.ifBlank { "(unnamed)" }}" },
+            )
+        }
         return diags
     }
 
