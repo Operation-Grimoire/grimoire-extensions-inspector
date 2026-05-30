@@ -47,15 +47,24 @@ object Checks {
             return listOf(Diagnostic("chapters", Severity.ERROR, "CHAPTER_LIST_EMPTY", "getChapterList returned 0 chapters"))
         }
         val diags = mutableListOf<Diagnostic>()
-        val noUrl = list.count { it.url.isBlank() }
-        if (noUrl > 0) diags += Diagnostic("chapters", Severity.ERROR, "CHAPTER_URL_EMPTY", "$noUrl/${list.size} chapters have a blank url", noUrl)
-        val noName = list.count { it.name.isBlank() }
-        if (noName > 0) diags += Diagnostic("chapters", Severity.WARN, "CHAPTER_NAME_EMPTY", "$noName/${list.size} chapters have a blank name", noName)
-        val urls = list.map { it.url }
-        val dupes = urls.size - urls.toSet().size
+        val noUrl = list.filter { it.url.isBlank() }
+        if (noUrl.isNotEmpty()) diags += Diagnostic(
+            "chapters", Severity.ERROR, "CHAPTER_URL_EMPTY",
+            "${noUrl.size}/${list.size} chapters have a blank url", noUrl.size,
+            noUrl.take(SAMPLE).map { "#${list.indexOf(it)} ${it.name.ifBlank { "(unnamed)" }}" },
+        )
+        val noName = list.filter { it.name.isBlank() }
+        if (noName.isNotEmpty()) diags += Diagnostic(
+            "chapters", Severity.WARN, "CHAPTER_NAME_EMPTY",
+            "${noName.size}/${list.size} chapters have a blank name", noName.size,
+            noName.take(SAMPLE).map { it.url },
+        )
+        val dupeCounts = list.map { it.url }.groupingBy { it }.eachCount().filter { it.value > 1 }
+        val dupes = dupeCounts.values.sumOf { it - 1 }
         if (dupes > 0) diags += Diagnostic(
             "chapters", Severity.ERROR, "CHAPTER_URL_DUPLICATE",
             "$dupes duplicate chapter url(s) — duplicate Compose keys crash the reader list", dupes,
+            dupeCounts.entries.take(SAMPLE).map { "${it.key} ×${it.value}" },
         )
         return diags
     }
@@ -65,12 +74,12 @@ object Checks {
             return listOf(Diagnostic("pages", Severity.ERROR, "PAGE_LIST_EMPTY", "getPageList returned 0 pages"))
         }
         val content = list.filter { !it.isSeparator }
-        val blank = content.count { it.text.isBlank() && it.formattedText.isNullOrBlank() && it.imageUrl.isNullOrBlank() }
+        val blanks = content.filter { it.text.isBlank() && it.formattedText.isNullOrBlank() && it.imageUrl.isNullOrBlank() }
         return when {
-            content.isNotEmpty() && blank == content.size ->
-                listOf(Diagnostic("pages", Severity.ERROR, "PAGE_ALL_BLANK", "all ${content.size} content pages are empty (no text, no image)"))
-            blank > 0 ->
-                listOf(Diagnostic("pages", Severity.WARN, "PAGE_TEXT_EMPTY", "$blank/${list.size} pages have no text and no image", blank))
+            content.isNotEmpty() && blanks.size == content.size ->
+                listOf(Diagnostic("pages", Severity.ERROR, "PAGE_ALL_BLANK", "all ${content.size} content pages are empty (no text, no image)", content.size, content.take(SAMPLE).map { "page #${it.index}" }))
+            blanks.isNotEmpty() ->
+                listOf(Diagnostic("pages", Severity.WARN, "PAGE_TEXT_EMPTY", "${blanks.size}/${list.size} pages have no text and no image", blanks.size, blanks.take(SAMPLE).map { "page #${it.index}" }))
             else -> emptyList()
         }
     }

@@ -96,15 +96,27 @@ function StageItem({ st }: { st: StageResult }) {
 
 function DiagRow({ d }: { d: Diagnostic }) {
   const color = d.severity === "ERROR" ? "red" : d.severity === "WARN" ? "yellow" : "dimmed";
+  // Backend caps samples at 5; if we got that many there are likely more.
+  const truncated = d.samples.length >= 5;
   return (
-    <Text size="sm" c={color}>
-      {d.severity} {d.code}: {d.message}
+    <div>
+      <Text size="sm" c={color}>
+        {d.severity} {d.code}: {d.message}
+      </Text>
       {d.samples.length > 0 && (
-        <Text span c="dimmed" size="xs">
-          {" "}
-          — {d.samples.slice(0, 3).join(", ")}
-        </Text>
+        <Stack gap={0} mt={2} ml="md">
+          {d.samples.map((s, i) => (
+            <Text key={i} size="xs" c="dimmed" style={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+              • {s}
+            </Text>
+          ))}
+          {truncated && (
+            <Text size="xs" c="dimmed">
+              …(showing first {d.samples.length})
+            </Text>
+          )}
+        </Stack>
       )}
-    </Text>
+    </div>
   );
 }
