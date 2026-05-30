@@ -39,8 +39,27 @@ class SourceOps(val ds: DiscoveredSource) {
     suspend fun chapters(url: String, page: Int? = null): List<Chapter> {
         val novel = stubNovel(url)
         val paged = source as? PaginatedSource
-        return if (page != null && paged != null) paged.getChapterList(novel, page)
-        else source.getChapterList(novel)
+        // Explicit page → that single page. No page → the full list: a paginated
+        // source's getChapterList(novel) only returns page 1, so walk pages until
+        // one is empty or stops yielding new URLs (overflow guard), accumulating.
+        return when {
+            page != null && paged != null -> paged.getChapterList(novel, page)
+            paged != null -> {
+                val all = mutableListOf<Chapter>()
+                val seen = HashSet<String>()
+                var p = 1
+                while (p <= MAX_CHAPTER_PAGES) {
+                    val batch = paged.getChapterList(novel, p)
+                    if (batch.isEmpty()) break
+                    val newCount = batch.count { seen.add(it.url) } // count{}: no short-circuit
+                    all += batch
+                    if (newCount == 0) break // page repeated only already-seen URLs → stop
+                    p++
+                }
+                all
+            }
+            else -> source.getChapterList(novel)
+        }
     }
 
     suspend fun pages(url: String): List<NovelPage> = source.getPageList(stubChapter(url))
@@ -82,4 +101,10 @@ class SourceOps(val ds: DiscoveredSource) {
     // url the request builders read.
     private fun stubNovel(url: String) = Novel(url = url, title = "")
     private fun stubChapter(url: String) = Chapter(url = url, name = "")
+
+    companion object {
+        // Safety cap on chapter-page walking, so a source that never returns an
+        // empty page can't loop forever.
+        private const val MAX_CHAPTER_PAGES = 500
+    }
 }
