@@ -64,14 +64,20 @@ class Inspector(
         stages += stage("popular") {
             val list = ops.popular(1)
             firstNovel = list.firstOrNull()
-            StageOutcome(Checks.novels("popular", list), mapOf("items" to list.size))
+            StageOutcome(
+                Checks.novels("popular", list) + probeImages(ops, "popular", list.map { it.thumbnailUrl }),
+                mapOf("items" to list.size),
+            )
         }
 
         stages += stage("details", target = firstNovel?.url) {
             val n = firstNovel ?: return@stage skipped("details", "no novel from popular")
             val d = ops.details(n.url)
             detailed = d
-            StageOutcome(Checks.details(d, multiLang = ops.source is MultiLanguageSource))
+            StageOutcome(
+                Checks.details(d, multiLang = ops.source is MultiLanguageSource) +
+                    probeImages(ops, "details", listOfNotNull(d.thumbnailUrl)),
+            )
         }
 
         if (ops.source is EpubSource) {
@@ -96,13 +102,19 @@ class Inspector(
                     return@stage StageOutcome(listOf(Diagnostic("pages", Severity.INFO, "LOCKED", "only locked chapters available; skipping read")))
                 }
                 val list = ops.pages(c.url)
-                StageOutcome(Checks.pages(list), mapOf("items" to list.size))
+                StageOutcome(
+                    Checks.pages(list) + probeImages(ops, "pages", list.mapNotNull { it.imageUrl }),
+                    mapOf("items" to list.size),
+                )
             }
         }
 
         stages += stage("latest") {
             val list = ops.latest(1)
-            StageOutcome(Checks.novels("latest", list), mapOf("items" to list.size))
+            StageOutcome(
+                Checks.novels("latest", list) + probeImages(ops, "latest", list.map { it.thumbnailUrl }),
+                mapOf("items" to list.size),
+            )
         }
 
         stages += stage("search", target = "query=\"$query\"") {
@@ -110,7 +122,7 @@ class Inspector(
             val diags = if (list.isEmpty()) {
                 listOf(Diagnostic("search", Severity.WARN, "SEARCH_EMPTY", "search '$query' returned 0 results"))
             } else {
-                Checks.novels("search", list)
+                Checks.novels("search", list) + probeImages(ops, "search", list.map { it.thumbnailUrl })
             }
             StageOutcome(diags, mapOf("items" to list.size))
         }
@@ -198,6 +210,20 @@ class Inspector(
     private fun skipped(stage: String, why: String) =
         StageOutcome(listOf(Diagnostic(stage, Severity.WARN, "SKIPPED", why)))
 
+    /** Fetch a sample of the view's image URLs and flag any that don't load
+     *  (404, empty, or an HTML error page instead of bytes). Sampled to keep the
+     *  suite from downloading every cover/page. */
+    private suspend fun probeImages(ops: SourceOps, stage: String, urls: List<String?>): List<Diagnostic> {
+        val targets = urls.filterNotNull().filter { it.isNotBlank() }.distinct().take(IMAGE_SAMPLE)
+        if (targets.isEmpty()) return emptyList()
+        val broken = targets.mapNotNull { u ->
+            val p = ops.imageStatus(u)
+            if (!p.ok) "$u → ${p.detail}" else null
+        }
+        return if (broken.isEmpty()) emptyList()
+        else listOf(Diagnostic(stage, Severity.WARN, "IMAGE_LOAD_FAILED", "${broken.size}/${targets.size} sampled images failed to load", broken.size, broken))
+    }
+
     /** Total selectable-option count across a filter list (Group children +
      *  Select values), used to tell whether fetchFilterOptions actually added
      *  anything regardless of which filter kind carries the dynamic options. */
@@ -231,4 +257,9 @@ class Inspector(
     }
 
     private fun elapsed(t0: Long) = System.currentTimeMillis() - t0
+
+    private companion object {
+        // Images probed per view, to bound the suite's network cost.
+        const val IMAGE_SAMPLE = 3
+    }
 }

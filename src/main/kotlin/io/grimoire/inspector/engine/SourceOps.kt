@@ -15,16 +15,22 @@ import io.grimoire.api.source.PaginatedSource
 import io.grimoire.api.source.SourcePreference
 import io.grimoire.api.source.WebViewLoginSource
 import io.grimoire.inspector.DiscoveredSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import okhttp3.Request
 
 /**
  * Thin, app-mimicking wrapper around a single source instance. Every live
  * operation goes through here so the CLI suite and the web endpoints behave
  * identically.
  */
+/** Outcome of probing whether an image URL loads. */
+class ImageProbe(val ok: Boolean, val detail: String)
+
 class SourceOps(val ds: DiscoveredSource) {
 
     val source = ds.instance
@@ -101,6 +107,26 @@ class SourceOps(val ds: DiscoveredSource) {
 
     /** The source's own OkHttp client (UA + cookie jar), for the image proxy. */
     fun client(): OkHttpClient = (source as? HttpSource)?.client ?: defaultOkHttpClient()
+
+    /** Fetch an image URL through the source's client (UA/cookies/CF apply) and
+     *  judge whether it actually loaded — a 2xx with non-empty, non-HTML body.
+     *  Resolution mirrors the /img proxy (relative URLs joined to baseUrl). */
+    suspend fun imageStatus(url: String): ImageProbe = withContext(Dispatchers.IO) {
+        val full = if (url.startsWith("http")) url else ds.baseUrl.trimEnd('/') + "/" + url.trimStart('/')
+        runCatching {
+            client().newCall(Request.Builder().url(full).build()).execute().use { resp ->
+                val ct = resp.body?.contentType()?.toString().orEmpty()
+                val size = resp.body?.bytes()?.size ?: 0
+                when {
+                    !resp.isSuccessful -> ImageProbe(false, "HTTP ${resp.code}")
+                    size == 0 -> ImageProbe(false, "empty body")
+                    ct.contains("html", ignoreCase = true) || ct.startsWith("text/") ->
+                        ImageProbe(false, "not an image (Content-Type: ${ct.ifBlank { "?" }})")
+                    else -> ImageProbe(true, "$ct ${size}b")
+                }
+            }
+        }.getOrElse { ImageProbe(false, it.message ?: it.javaClass.simpleName) }
+    }
 
     fun capabilities(): List<String> = buildList {
         if (source is CatalogueSource) add("CatalogueSource")
