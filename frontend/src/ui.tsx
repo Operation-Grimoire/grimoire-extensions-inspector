@@ -53,7 +53,10 @@ export function Spinner({ label = "loading…" }: { label?: string }) {
 }
 
 export function ErrorBanner({ msg }: { msg: string }) {
-  const cf = /CLOUDFLARE/i.test(msg);
+  // Key off the error code prefix (errMsg formats as "CODE: message"), not any
+  // mention of "cloudflare" in the text — a 503 whose message merely quotes a
+  // propagated CF string is not a Cloudflare block.
+  const cf = /^CLOUDFLARE/i.test(msg);
   return (
     <Alert
       my="sm"
