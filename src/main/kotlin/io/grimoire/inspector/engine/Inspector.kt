@@ -64,21 +64,21 @@ class Inspector(
             StageOutcome(Checks.novels("popular", list), mapOf("items" to list.size))
         }
 
-        stages += stage("details") {
+        stages += stage("details", target = firstNovel?.url) {
             val n = firstNovel ?: return@stage skipped("details", "no novel from popular")
             val d = ops.details(n.url)
             detailed = d
             StageOutcome(Checks.details(d))
         }
 
-        stages += stage("chapters") {
+        stages += stage("chapters", target = (detailed ?: firstNovel)?.url) {
             val n = detailed ?: firstNovel ?: return@stage skipped("chapters", "no novel to query")
             val list = ops.chapters(n.url)
             firstChapter = list.firstOrNull { !it.locked } ?: list.firstOrNull()
             StageOutcome(Checks.chapters(list), mapOf("items" to list.size))
         }
 
-        stages += stage("pages") {
+        stages += stage("pages", target = firstChapter?.url) {
             val c = firstChapter ?: return@stage skipped("pages", "no chapter to read")
             if (c.locked) {
                 return@stage StageOutcome(listOf(Diagnostic("pages", Severity.INFO, "LOCKED", "only locked chapters available; skipping read")))
@@ -92,7 +92,7 @@ class Inspector(
             StageOutcome(Checks.novels("latest", list), mapOf("items" to list.size))
         }
 
-        stages += stage("search") {
+        stages += stage("search", target = "query=\"$query\"") {
             val list = ops.search(query, 1)
             val diags = if (list.isEmpty()) {
                 listOf(Diagnostic("search", Severity.WARN, "SEARCH_EMPTY", "search '$query' returned 0 results"))
@@ -142,33 +142,38 @@ class Inspector(
             }
         }
 
-        return finalize(ops, stages)
+        val probe = (detailed ?: firstNovel)?.let { Probe(it.title, it.url) }
+        return finalize(ops, stages, probe)
     }
 
     private suspend fun stage(
         name: String,
         network: Boolean = true,
+        target: String? = null,
         block: suspend () -> StageOutcome,
     ): StageResult {
-        if (offline && network) return StageResult(name, "skipped", 0)
+        if (offline && network) return StageResult(name, "skipped", 0, target = target)
         val t0 = System.currentTimeMillis()
         return try {
             val outcome = withTimeout(timeoutMs) { block() }
-            StageResult(name, statusOf(outcome.diagnostics), elapsed(t0), outcome.counts, outcome.diagnostics)
+            StageResult(name, statusOf(outcome.diagnostics), elapsed(t0), outcome.counts, outcome.diagnostics, target)
         } catch (e: CloudflareException) {
             StageResult(
                 name, "warn", elapsed(t0), emptyMap(),
                 listOf(Diagnostic(name, Severity.WARN, "CLOUDFLARE_BLOCKED", e.message ?: "Cloudflare challenge", exceptionType = e.javaClass.simpleName)),
+                target,
             )
         } catch (e: TimeoutCancellationException) {
             StageResult(
                 name, "error", elapsed(t0), emptyMap(),
                 listOf(Diagnostic(name, Severity.ERROR, "TIMEOUT", "timed out after ${timeoutMs}ms", exceptionType = "TimeoutCancellationException")),
+                target,
             )
         } catch (e: Throwable) {
             StageResult(
                 name, "error", elapsed(t0), emptyMap(),
                 listOf(Diagnostic(name, Severity.ERROR, classify(e), e.message ?: e.toString(), exceptionType = e.javaClass.simpleName)),
+                target,
             )
         }
     }
@@ -187,10 +192,10 @@ class Inspector(
         }
     }
 
-    private fun finalize(ops: SourceOps, stages: List<StageResult>): SourceReport {
+    private fun finalize(ops: SourceOps, stages: List<StageResult>, probe: Probe? = null): SourceReport {
         val errors = stages.sumOf { st -> st.diagnostics.count { it.severity == Severity.ERROR } }
         val warnings = stages.sumOf { st -> st.diagnostics.count { it.severity == Severity.WARN } }
-        return SourceReport(ops.meta(), errors == 0, stages, errors, warnings)
+        return SourceReport(ops.meta(), errors == 0, stages, errors, warnings, probe)
     }
 
     private fun statusOf(diags: List<Diagnostic>): String = when {

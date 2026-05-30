@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from "react-router-dom";
-import { Accordion, Anchor, Badge, Card, Group, Stack, Text } from "@mantine/core";
+import { Accordion, Anchor, Badge, Button, Card, Code, Group, Stack, Text } from "@mantine/core";
 import { api, Diagnostic, RunReport as Report, SourceReport, StageResult } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
 
@@ -18,14 +18,25 @@ export function RunReport() {
 
   return (
     <Stack gap="md">
-      {state.data && (
-        <Group gap="xs">
-          <Text>{state.data.totals.sources} sources</Text>
-          <Text c="red">· {state.data.totals.errors} errors</Text>
-          <Text c="yellow">· {state.data.totals.warnings} warnings</Text>
-          <Text c="dimmed">· {state.data.durationMs}ms</Text>
-        </Group>
-      )}
+      <Group gap="xs">
+        {state.data && (
+          <>
+            <Text>{state.data.totals.sources} sources</Text>
+            <Text c="red">· {state.data.totals.errors} errors</Text>
+            <Text c="yellow">· {state.data.totals.warnings} warnings</Text>
+            <Text c="dimmed">· {state.data.durationMs}ms</Text>
+          </>
+        )}
+        <Button
+          size="xs"
+          variant="default"
+          ml="auto"
+          loading={state.loading}
+          onClick={state.reload}
+        >
+          {state.loading ? "running…" : "Rerun"}
+        </Button>
+      </Group>
       {state.loading && <Spinner label="running suite (live network)…" />}
       {state.error && <ErrorBanner msg={state.error} />}
       {state.data?.sources.map((sr) => (
@@ -52,6 +63,18 @@ function SourceCard({ sr }: { sr: SourceReport }) {
           browse →
         </Anchor>
       </Group>
+      {sr.probe && (
+        <Text size="xs" c="dimmed" mb="xs">
+          probed novel: {sr.probe.title || "(untitled)"} ·{" "}
+          <Anchor
+            component={Link}
+            to={`/source/${sr.source.id}/novel?u=${encodeURIComponent(sr.probe.url)}&t=${encodeURIComponent(sr.probe.title)}`}
+            size="xs"
+          >
+            {sr.probe.url}
+          </Anchor>
+        </Text>
+      )}
       <Accordion multiple defaultValue={open} variant="separated">
         {sr.stages.map((st) => (
           <StageItem key={st.stage} st={st} />
@@ -75,6 +98,9 @@ function StageItem({ st }: { st: StageResult }) {
           <Text c="dimmed" size="xs">
             {st.status} {counts}
           </Text>
+          {st.target && (
+            <Code style={{ fontSize: 11, wordBreak: "break-all" }}>{st.target}</Code>
+          )}
         </Group>
       </Accordion.Control>
       <Accordion.Panel>

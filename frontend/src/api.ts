@@ -87,6 +87,12 @@ export interface StageResult {
   durationMs: number;
   counts: Record<string, number>;
   diagnostics: Diagnostic[];
+  target?: string | null;
+}
+
+export interface Probe {
+  title: string;
+  url: string;
 }
 
 export interface SourceReport {
@@ -95,6 +101,7 @@ export interface SourceReport {
   stages: StageResult[];
   errors: number;
   warnings: number;
+  probe?: Probe | null;
 }
 
 export interface RunReport {

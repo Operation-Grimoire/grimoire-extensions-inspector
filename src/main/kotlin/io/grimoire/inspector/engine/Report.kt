@@ -35,7 +35,12 @@ data class StageResult(
     val durationMs: Long,
     val counts: Map<String, Int> = emptyMap(),
     val diagnostics: List<Diagnostic> = emptyList(),
+    val target: String? = null, // the url/query this stage probed, if any
 )
+
+/** The novel the details/chapters/pages stages were run against. */
+@Serializable
+data class Probe(val title: String, val url: String)
 
 @Serializable
 data class SourceReport(
@@ -44,6 +49,7 @@ data class SourceReport(
     val stages: List<StageResult>,
     val errors: Int,
     val warnings: Int,
+    val probe: Probe? = null,
 )
 
 @Serializable
