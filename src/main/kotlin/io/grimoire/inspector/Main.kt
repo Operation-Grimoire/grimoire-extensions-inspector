@@ -28,7 +28,7 @@ private class ListCmd : CliktCommand(name = "list") {
     override fun run() {
         val sources = SourceDiscovery.discover()
         if (asJson) {
-            echo(json.encodeToString(sources.map { SourceOps(it).meta() }))
+            echo(json.encodeToString(runBlocking { sources.map { SourceOps(it).meta() } }))
         } else {
             echo("Discovered ${sources.size} source(s):")
             sources.forEach {

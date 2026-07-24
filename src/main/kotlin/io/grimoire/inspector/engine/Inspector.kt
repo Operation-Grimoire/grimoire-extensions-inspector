@@ -1,13 +1,14 @@
 package io.grimoire.inspector.engine
 
-import io.grimoire.api.model.Chapter
-import io.grimoire.api.model.Filter
-import io.grimoire.api.model.Novel
+import io.grimoire.api.model.novel.Chapter
+import io.grimoire.api.model.novel.PageContent
+import io.grimoire.api.model.filter.Filter
+import io.grimoire.api.model.novel.Novel
 import io.grimoire.api.network.CloudflareException
-import io.grimoire.api.source.ConfigurableSource
-import io.grimoire.api.source.EpubSource
-import io.grimoire.api.source.MultiLanguageSource
-import io.grimoire.api.source.WebViewLoginSource
+import io.grimoire.api.source.feature.ConfigurableSource
+import io.grimoire.api.source.epub.EpubSource
+import io.grimoire.api.source.feature.MultiLanguageSource
+import io.grimoire.api.source.feature.WebViewLoginSource
 import io.grimoire.inspector.DiscoveredSource
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -56,7 +57,7 @@ class Inspector(
         ops.loginUrl?.let { capDiags += Diagnostic("capabilities", Severity.INFO, "LOGIN_URL", it) }
         stages += StageResult("capabilities", "info", 0, emptyMap(), capDiags)
 
-        if (ops.catalogue == null) {
+        if (!ops.canBrowse) {
             return finalize(ops, stages) // nothing browsable
         }
 
@@ -106,7 +107,7 @@ class Inspector(
                 }
                 val list = ops.pages(c.url)
                 StageOutcome(
-                    Checks.pages(list) + probeImages(ops, "pages", list.mapNotNull { it.imageUrl }),
+                    Checks.pages(list) + probeImages(ops, "pages", list.mapNotNull { (it.content as? PageContent.Image)?.url }),
                     mapOf("items" to list.size),
                 )
             }
@@ -130,9 +131,9 @@ class Inspector(
             StageOutcome(diags, mapOf("items" to list.size))
         }
 
-        if (ops.source is MultiLanguageSource && ops.languages.isNotEmpty()) {
+        if (ops.source is MultiLanguageSource && ops.languages().isNotEmpty()) {
             stages += stage("languages") {
-                val langs = ops.languages
+                val langs = ops.languages()
                 val empties = checkLanguages(ops, langs)
                 val diags = if (empties.isEmpty()) {
                     listOf(Diagnostic("languages", Severity.INFO, "LANGUAGES_OK", "all ${langs.size} languages return popular novels", langs.size))
@@ -151,7 +152,7 @@ class Inspector(
                 mapOf("items" to base.size),
             )
         }
-        if (ops.catalogue?.hasDynamicFilters == true) {
+        if (ops.hasDynamicFilters) {
             stages += stage("fetchFilters") {
                 // A dynamic source claims it fetches options over the network.
                 // Verify by comparing total option-weight cold vs. after fetch —
@@ -159,7 +160,7 @@ class Inspector(
                 // FRESH instance: fetchFilterOptions mutates filter state, so the
                 // shared source would already be populated on a rerun (before ==
                 // after) and wrongly look like a no-op.
-                val fresh = ops.freshCatalogue()
+                val fresh = ops.freshFilterSource()
                 val before = optionWeight(fresh?.getFilterList() ?: ops.filterList())
                 val opts = fresh?.fetchFilterOptions() ?: ops.fetchFilters()
                 val after = optionWeight(opts)
@@ -264,7 +265,7 @@ class Inspector(
         }
     }
 
-    private fun finalize(ops: SourceOps, stages: List<StageResult>, probe: Probe? = null): SourceReport {
+    private suspend fun finalize(ops: SourceOps, stages: List<StageResult>, probe: Probe? = null): SourceReport {
         val errors = stages.sumOf { st -> st.diagnostics.count { it.severity == Severity.ERROR } }
         val warnings = stages.sumOf { st -> st.diagnostics.count { it.severity == Severity.WARN } }
         return SourceReport(ops.meta(), errors == 0, stages, errors, warnings, probe)
