@@ -80,7 +80,7 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                         val o = resolve(byId) ?: return@get
                         val fetch = call.request.queryParameters["fetch"] == "true"
                         call.guarded {
-                            val filters = if (fetch && (o.catalogue?.hasDynamicFilters == true)) o.fetchFilters() else o.filterList()
+                            val filters = if (fetch && o.hasDynamicFilters) o.fetchFilters() else o.filterList()
                             call.respond(filters.map { it.toDto() })
                         }
                     }
@@ -129,7 +129,7 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                     get("/languages") {
                         val o = resolve(byId) ?: return@get
                         val id = resolveBlockingId()
-                        call.respond(LanguagesDto(o.languages, id?.let { enabledLangs[it] } ?: emptyList()))
+                        call.respond(LanguagesDto(o.languages(), id?.let { enabledLangs[it] } ?: emptyList()))
                     }
                     post("/languages") {
                         val o = resolve(byId) ?: return@post
@@ -137,7 +137,7 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                         val req = call.receive<LanguagesReq>()
                         o.setLanguages(req.languages.toSet())
                         if (id != null) enabledLangs[id] = req.languages
-                        call.respond(LanguagesDto(o.languages, req.languages))
+                        call.respond(LanguagesDto(o.languages(), req.languages))
                     }
                     get("/prefs") {
                         val o = resolve(byId) ?: return@get

@@ -3,6 +3,7 @@ package io.grimoire.inspector
 import io.github.classgraph.ClassGraph
 import io.grimoire.api.source.Source
 import io.grimoire.api.source.SourceInfo
+import io.grimoire.api.source.sourceIdFor
 
 /** A source instance plus its declared @SourceInfo metadata. */
 data class DiscoveredSource(
@@ -40,9 +41,11 @@ object SourceDiscovery {
                         val ann = clazz.getAnnotation(SourceInfo::class.java)
                         out += DiscoveredSource(
                             instance = instance,
-                            id = ann?.id ?: instance.id,
+                            // Identity is derived from the package name (mirrors the
+                            // app's sourceIdFor), since SourceInfo no longer carries an id.
+                            id = sourceIdFor(clazz.getPackage()?.name ?: clazz.name),
                             name = ann?.name ?: instance.name,
-                            lang = ann?.lang ?: instance.lang,
+                            lang = (ann?.lang ?: instance.lang).code,
                             baseUrl = ann?.baseUrl ?: "",
                             versionCode = ann?.versionCode ?: 1,
                             className = clazz.name,

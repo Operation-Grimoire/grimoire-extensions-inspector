@@ -1,9 +1,11 @@
 package io.grimoire.inspector.engine
 
-import io.grimoire.api.model.Chapter
-import io.grimoire.api.model.Novel
-import io.grimoire.api.model.NovelPage
-import io.grimoire.api.model.NovelStatus
+import io.grimoire.api.model.lang.Language
+import io.grimoire.api.model.novel.Chapter
+import io.grimoire.api.model.novel.Novel
+import io.grimoire.api.model.novel.NovelPage
+import io.grimoire.api.model.novel.NovelStatus
+import io.grimoire.api.model.novel.PageContent
 import java.util.zip.ZipInputStream
 
 /** Validations that mirror the breakage the app actually trips over. */
@@ -45,9 +47,9 @@ object Checks {
         if (n.genres.isEmpty()) add(Diagnostic("details", Severity.WARN, "GENRES_EMPTY", "detail page has no genres"))
         if (n.status == NovelStatus.UNKNOWN) add(Diagnostic("details", Severity.INFO, "STATUS_UNKNOWN", "novel.status=UNKNOWN (not parsed)"))
         if (n.rating == null) add(Diagnostic("details", Severity.INFO, "RATING_EMPTY", "novel.rating is null (no rating parsed)"))
-        if (n.language.isNullOrBlank()) {
-            if (multiLang) add(Diagnostic("details", Severity.ERROR, "LANGUAGE_REQUIRED", "multi-language source left novel.language null — host can't tell which language this is"))
-            else add(Diagnostic("details", Severity.INFO, "LANGUAGE_EMPTY", "novel.language is null"))
+        if (n.language == Language.UNKNOWN) {
+            if (multiLang) add(Diagnostic("details", Severity.ERROR, "LANGUAGE_REQUIRED", "multi-language source left novel.language UNKNOWN — host can't tell which language this is"))
+            else add(Diagnostic("details", Severity.INFO, "LANGUAGE_EMPTY", "novel.language is UNKNOWN"))
         }
         if (!n.initialized) add(Diagnostic("details", Severity.INFO, "NOT_INITIALIZED", "novel.initialized=false (host treats it as a stub)"))
     }
@@ -148,8 +150,14 @@ object Checks {
         if (list.isEmpty()) {
             return listOf(Diagnostic("pages", Severity.ERROR, "PAGE_LIST_EMPTY", "getPageList returned 0 pages"))
         }
-        val content = list.filter { !it.isSeparator }
-        val blanks = content.filter { it.text.isBlank() && it.formattedText.isNullOrBlank() && it.imageUrl.isNullOrBlank() }
+        val content = list.filter { it.content !is PageContent.Separator }
+        val blanks = content.filter { page ->
+            when (val c = page.content) {
+                is PageContent.Text -> c.text.isBlank() && c.html.isNullOrBlank()
+                is PageContent.Image -> c.url.isBlank()
+                is PageContent.Separator -> true
+            }
+        }
         return when {
             content.isNotEmpty() && blanks.size == content.size ->
                 listOf(Diagnostic("pages", Severity.ERROR, "PAGE_ALL_BLANK", "all ${content.size} content pages are empty (no text, no image)", content.size, content.take(SAMPLE).map { "page #${it.index}" }))

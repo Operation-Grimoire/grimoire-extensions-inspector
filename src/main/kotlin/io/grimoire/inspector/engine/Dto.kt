@@ -1,10 +1,11 @@
 package io.grimoire.inspector.engine
 
-import io.grimoire.api.model.Chapter
-import io.grimoire.api.model.Filter
-import io.grimoire.api.model.Novel
-import io.grimoire.api.model.NovelPage
-import io.grimoire.api.source.SourcePreference
+import io.grimoire.api.model.filter.Filter
+import io.grimoire.api.model.novel.Chapter
+import io.grimoire.api.model.novel.Novel
+import io.grimoire.api.model.novel.NovelPage
+import io.grimoire.api.model.novel.PageContent
+import io.grimoire.api.model.pref.SourcePreference
 import kotlinx.serialization.Serializable
 
 // --- Wire DTOs (the API models aren't @Serializable, so map to these) --------
@@ -26,7 +27,7 @@ data class NovelDto(
 
 fun Novel.toDto() = NovelDto(
     url, title, thumbnailUrl, author, description, genres,
-    status.name, rating, ratingCount, language, initialized,
+    status.name, rating, ratingCount, language.code, initialized,
 )
 
 @Serializable
@@ -50,7 +51,11 @@ data class PageDto(
     val formattedText: String? = null,
 )
 
-fun NovelPage.toDto() = PageDto(index, text, imageUrl, isSeparator, formattedText)
+fun NovelPage.toDto(): PageDto = when (val c = content) {
+    is PageContent.Text -> PageDto(index, c.text, imageUrl = null, isSeparator = false, formattedText = c.html)
+    is PageContent.Image -> PageDto(index, text = "", imageUrl = c.url, isSeparator = false)
+    is PageContent.Separator -> PageDto(index, text = "", imageUrl = null, isSeparator = true)
+}
 
 @Serializable
 data class FilterDto(
