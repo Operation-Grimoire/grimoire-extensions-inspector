@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, Button, Card, Center, Group, Image, SimpleGrid, Text, TextInput } from "@mantine/core";
-import { api, imgUrl, Novel } from "../api";
+import { api, imgUrl, Novel, SourceId } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
 import { useCurrentSource } from "./SourceLayout";
 
@@ -52,7 +52,7 @@ function Grid({
   onOpen,
 }: {
   list: Novel[];
-  sourceId: number;
+  sourceId: SourceId;
   onOpen: (n: Novel) => void;
 }) {
   if (list.length === 0)
@@ -81,7 +81,7 @@ function NovelCard({
   onOpen,
 }: {
   n: Novel;
-  sourceId: number;
+  sourceId: SourceId;
   onOpen: (n: Novel) => void;
 }) {
   const [broken, setBroken] = useState(false);

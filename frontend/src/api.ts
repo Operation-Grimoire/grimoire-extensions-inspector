@@ -2,8 +2,13 @@
 
 export type Severity = "INFO" | "WARN" | "ERROR";
 
+// Source ids are 64-bit and routinely exceed Number.MAX_SAFE_INTEGER, so the
+// backend sends them as strings and they stay strings here (a JS number would
+// round them and every per-source call would 404).
+export type SourceId = string;
+
 export interface SourceMeta {
-  id: number;
+  id: SourceId;
   name: string;
   lang: string;
   baseUrl: string;
@@ -143,44 +148,44 @@ async function parse<T>(r: Response): Promise<T> {
 
 export const api = {
   sources: () => fetch("/api/sources").then((r) => parse<SourceMeta[]>(r)),
-  popular: (id: number, page = 1) =>
+  popular: (id: SourceId, page = 1) =>
     fetch(`/api/sources/${id}/popular?page=${page}`).then((r) => parse<Novel[]>(r)),
-  latest: (id: number, page = 1) =>
+  latest: (id: SourceId, page = 1) =>
     fetch(`/api/sources/${id}/latest?page=${page}`).then((r) => parse<Novel[]>(r)),
-  search: (id: number, query: string, page = 1) =>
+  search: (id: SourceId, query: string, page = 1) =>
     post<Novel[]>(`/api/sources/${id}/search`, { query, page }),
-  filters: (id: number, fetchDynamic = false) =>
+  filters: (id: SourceId, fetchDynamic = false) =>
     fetch(`/api/sources/${id}/filters${fetchDynamic ? "?fetch=true" : ""}`).then((r) =>
       parse<FilterDto[]>(r),
     ),
-  novel: (id: number, url: string) => post<Novel>(`/api/sources/${id}/novel`, { url }),
-  chapters: (id: number, url: string, page?: number, concurrency?: number) =>
+  novel: (id: SourceId, url: string) => post<Novel>(`/api/sources/${id}/novel`, { url }),
+  chapters: (id: SourceId, url: string, page?: number, concurrency?: number) =>
     post<Chapter[]>(`/api/sources/${id}/chapters`, { url, page, concurrency }),
-  pages: (id: number, url: string) => post<Page[]>(`/api/sources/${id}/pages`, { url }),
-  epub: (id: number, url: string) => post<EpubResult>(`/api/sources/${id}/epub`, { url }),
-  epubDownloadUrl: (id: number, url: string) =>
+  pages: (id: SourceId, url: string) => post<Page[]>(`/api/sources/${id}/pages`, { url }),
+  epub: (id: SourceId, url: string) => post<EpubResult>(`/api/sources/${id}/epub`, { url }),
+  epubDownloadUrl: (id: SourceId, url: string) =>
     `/api/sources/${id}/epub/download?url=${encodeURIComponent(url)}`,
-  prefs: (id: number) => fetch(`/api/sources/${id}/prefs`).then((r) => parse<PrefDto[]>(r)),
-  setPrefs: (id: number, values: Record<string, string>) =>
+  prefs: (id: SourceId) => fetch(`/api/sources/${id}/prefs`).then((r) => parse<PrefDto[]>(r)),
+  setPrefs: (id: SourceId, values: Record<string, string>) =>
     post<{ ok: boolean }>(`/api/sources/${id}/prefs`, { values }),
-  host: (id: number) =>
+  host: (id: SourceId) =>
     fetch(`/api/sources/${id}/host`).then((r) => parse<{ hosts: string[]; active: string }>(r)),
-  setHost: (id: number, host: string) =>
+  setHost: (id: SourceId, host: string) =>
     post<{ hosts: string[]; active: string }>(`/api/sources/${id}/host`, { host }),
-  languages: (id: number) =>
+  languages: (id: SourceId) =>
     fetch(`/api/sources/${id}/languages`).then((r) =>
       parse<{ available: string[]; enabled: string[] }>(r),
     ),
-  setLanguages: (id: number, languages: string[]) =>
+  setLanguages: (id: SourceId, languages: string[]) =>
     post<{ available: string[]; enabled: string[] }>(`/api/sources/${id}/languages`, { languages }),
-  login: (id: number) => fetch(`/api/sources/${id}/login`).then((r) => parse<LoginDto>(r)),
-  getCookies: (id: number, url?: string) =>
+  login: (id: SourceId) => fetch(`/api/sources/${id}/login`).then((r) => parse<LoginDto>(r)),
+  getCookies: (id: SourceId, url?: string) =>
     fetch(`/api/sources/${id}/cookies${url ? `?url=${encodeURIComponent(url)}` : ""}`).then((r) =>
       parse<{ url: string; cookies: string }>(r),
     ),
-  cookies: (id: number, cookies: string, url?: string) =>
+  cookies: (id: SourceId, cookies: string, url?: string) =>
     post<{ ok: boolean }>(`/api/sources/${id}/cookies`, { cookies, url }),
-  clearCookies: (id: number) =>
+  clearCookies: (id: SourceId) =>
     fetch(`/api/sources/${id}/cookies`, { method: "DELETE" }).then((r) =>
       parse<{ ok: boolean }>(r),
     ),
@@ -198,5 +203,5 @@ function post<T>(path: string, payload: unknown): Promise<T> {
   }).then((r) => parse<T>(r));
 }
 
-export const imgUrl = (sourceId: number, url: string) =>
+export const imgUrl = (sourceId: SourceId, url: string) =>
   `/img?source=${sourceId}&url=${encodeURIComponent(url)}`;

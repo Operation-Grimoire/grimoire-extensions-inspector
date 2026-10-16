@@ -18,7 +18,7 @@ const LABEL: Record<(typeof TABS)[number], string> = {
 export function SourceLayout() {
   const { id } = useParams();
   const sources = useSources();
-  const source = useSource(Number(id));
+  const source = useSource(id);
   const { pathname } = useLocation();
   const activeTab = pathname.split("/")[3];
 
@@ -31,14 +31,17 @@ export function SourceLayout() {
   // from the @SourceInfo scan (see SourceOps.capabilities); Cookies always
   // applies (any source can be cookie/Cloudflare-gated).
   const caps = source.capabilities;
-  const browsable = caps.includes("CatalogueSource");
+  const needs = (cap: string, what: string) => (caps.includes(cap) ? null : `source is not a ${cap} — no ${what}`);
   const disabledReason = (t: (typeof TABS)[number]): string | null => {
     switch (t) {
       case "popular":
+        return needs("PopularSource", "popular listing");
       case "latest":
+        return needs("LatestSource", "latest listing");
       case "search":
+        return needs("SearchSource", "search");
       case "filters":
-        return browsable ? null : "source is not a CatalogueSource — nothing to browse";
+        return needs("FilterSource", "filters");
       case "config":
         return caps.includes("ConfigurableSource") || source.hosts.length > 0 || source.languages.length > 0
           ? null

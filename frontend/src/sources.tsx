@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import { api, SourceMeta } from "./api";
+import { api, SourceId, SourceMeta } from "./api";
 import { useAsync, AsyncState } from "./ui";
 
 // Sources are loaded once at the top of the app and shared via context so the
@@ -18,7 +18,7 @@ export function useSources(): AsyncState<SourceMeta[]> {
   return ctx;
 }
 
-export function useSource(id: number | undefined): SourceMeta | undefined {
+export function useSource(id: SourceId | undefined): SourceMeta | undefined {
   const { data } = useSources();
   return data?.find((s) => s.id === id);
 }

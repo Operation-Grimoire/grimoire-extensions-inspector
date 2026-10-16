@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { Button, Divider, Group, Image, Stack, Text, Title } from "@mantine/core";
-import { api, imgUrl, Page } from "../api";
+import { api, imgUrl, Page, SourceId } from "../api";
 import { useAsync, Spinner, ErrorBanner } from "../ui";
 import { useCurrentSource } from "./SourceLayout";
 
@@ -42,7 +42,7 @@ export function ReaderPage() {
   );
 }
 
-function PageView({ page, sourceId }: { page: Page; sourceId: number }) {
+function PageView({ page, sourceId }: { page: Page; sourceId: SourceId }) {
   if (page.imageUrl) return <Image src={imgUrl(sourceId, page.imageUrl)} />;
   if (page.formattedText)
     return <Text component="div" dangerouslySetInnerHTML={{ __html: page.formattedText }} />;
