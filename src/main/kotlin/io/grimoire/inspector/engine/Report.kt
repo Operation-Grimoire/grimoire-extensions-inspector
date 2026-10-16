@@ -1,6 +1,7 @@
 package io.grimoire.inspector.engine
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.LongAsStringSerializer
 
 enum class Severity { INFO, WARN, ERROR }
 
@@ -17,6 +18,9 @@ data class Diagnostic(
 
 @Serializable
 data class SourceMeta(
+    // A string in JSON: source ids are 64-bit and exceed JavaScript's safe
+    // integer range, so a JSON number would be rounded by the web UI.
+    @Serializable(with = LongAsStringSerializer::class)
     val id: Long,
     val name: String,
     val lang: String,
@@ -60,7 +64,7 @@ data class Totals(val sources: Int, val errors: Int, val warnings: Int)
 
 @Serializable
 data class RunReport(
-    val schemaVersion: Int = 1,
+    val schemaVersion: Int = 2, // 2: source.id is a JSON string
     val startedAt: String,
     val durationMs: Long,
     val query: String,

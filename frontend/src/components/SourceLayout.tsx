@@ -18,7 +18,7 @@ const LABEL: Record<(typeof TABS)[number], string> = {
 export function SourceLayout() {
   const { id } = useParams();
   const sources = useSources();
-  const source = useSource(Number(id));
+  const source = useSource(id);
   const { pathname } = useLocation();
   const activeTab = pathname.split("/")[3];
 

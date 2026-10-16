@@ -70,7 +70,7 @@ type Sort = "name" | "lang" | "id";
 const SORTERS: Record<Sort, (a: SourceMeta, b: SourceMeta) => number> = {
   name: (a, b) => a.name.localeCompare(b.name),
   lang: (a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name),
-  id: (a, b) => a.id - b.id,
+  id: (a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0),
 };
 
 function Sidebar({ sources }: { sources: SourceMeta[] }) {
