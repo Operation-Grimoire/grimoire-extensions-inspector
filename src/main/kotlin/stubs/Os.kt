@@ -12,4 +12,5 @@ class Looper private constructor() {
 class Handler(looper: Looper) {
     fun post(r: Runnable): Boolean = true
     fun postDelayed(r: Runnable, delayMillis: Long): Boolean = true
+    fun removeCallbacksAndMessages(token: Any?) = Unit
 }
