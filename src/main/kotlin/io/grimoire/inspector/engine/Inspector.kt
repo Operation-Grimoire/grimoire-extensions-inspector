@@ -7,7 +7,10 @@ import io.grimoire.api.model.novel.Novel
 import io.grimoire.api.network.CloudflareException
 import io.grimoire.api.source.feature.ConfigurableSource
 import io.grimoire.api.source.epub.EpubSource
+import io.grimoire.api.source.feature.LatestSource
 import io.grimoire.api.source.feature.MultiLanguageSource
+import io.grimoire.api.source.feature.PopularSource
+import io.grimoire.api.source.feature.SearchSource
 import io.grimoire.api.source.feature.WebViewLoginSource
 import io.grimoire.inspector.DiscoveredSource
 import kotlinx.coroutines.TimeoutCancellationException
@@ -65,17 +68,43 @@ class Inspector(
         var detailed: Novel? = null
         var firstChapter: Chapter? = null
 
-        stages += stage("popular") {
-            val list = ops.popular(1)
-            firstNovel = list.firstOrNull()
-            StageOutcome(
-                Checks.novels("popular", list) + probeImages(ops, "popular", list.map { it.thumbnailUrl }),
-                mapOf("items" to list.size),
-            )
+        if (ops.source is PopularSource) {
+            stages += stage("popular") {
+                val list = ops.popular(1)
+                firstNovel = firstNovel ?: list.firstOrNull()
+                StageOutcome(
+                    Checks.novels("popular", list) + probeImages(ops, "popular", list.map { it.thumbnailUrl }),
+                    mapOf("items" to list.size),
+                )
+            }
+        }
+
+        if (ops.source is LatestSource) {
+            stages += stage("latest") {
+                val list = ops.latest(1)
+                firstNovel = firstNovel ?: list.firstOrNull()
+                StageOutcome(
+                    Checks.novels("latest", list) + probeImages(ops, "latest", list.map { it.thumbnailUrl }),
+                    mapOf("items" to list.size),
+                )
+            }
+        }
+
+        if (ops.source is SearchSource) {
+            stages += stage("search", target = "query=\"$query\"") {
+                val list = ops.search(query, 1)
+                firstNovel = firstNovel ?: list.firstOrNull()
+                val diags = if (list.isEmpty()) {
+                    listOf(Diagnostic("search", Severity.WARN, "SEARCH_EMPTY", "search '$query' returned 0 results"))
+                } else {
+                    Checks.novels("search", list) + probeImages(ops, "search", list.map { it.thumbnailUrl })
+                }
+                StageOutcome(diags, mapOf("items" to list.size))
+            }
         }
 
         stages += stage("details", target = firstNovel?.url) {
-            val n = firstNovel ?: return@stage skipped("details", "no novel from popular")
+            val n = firstNovel ?: return@stage skipped("details", "no novel from supported browse stages")
             val d = ops.details(n.url)
             detailed = d
             StageOutcome(
@@ -113,25 +142,7 @@ class Inspector(
             }
         }
 
-        stages += stage("latest") {
-            val list = ops.latest(1)
-            StageOutcome(
-                Checks.novels("latest", list) + probeImages(ops, "latest", list.map { it.thumbnailUrl }),
-                mapOf("items" to list.size),
-            )
-        }
-
-        stages += stage("search", target = "query=\"$query\"") {
-            val list = ops.search(query, 1)
-            val diags = if (list.isEmpty()) {
-                listOf(Diagnostic("search", Severity.WARN, "SEARCH_EMPTY", "search '$query' returned 0 results"))
-            } else {
-                Checks.novels("search", list) + probeImages(ops, "search", list.map { it.thumbnailUrl })
-            }
-            StageOutcome(diags, mapOf("items" to list.size))
-        }
-
-        if (ops.source is MultiLanguageSource && ops.languages().isNotEmpty()) {
+        if (ops.source is MultiLanguageSource && ops.source is PopularSource && ops.languages().isNotEmpty()) {
             stages += stage("languages") {
                 val langs = ops.languages()
                 val empties = checkLanguages(ops, langs)

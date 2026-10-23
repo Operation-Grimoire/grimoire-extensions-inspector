@@ -74,11 +74,24 @@ class WebSettings {
 
 open class WebViewClient {
     open fun onPageFinished(view: WebView, url: String) = Unit
+    open fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) = Unit
+    open fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = false
+    open fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) = Unit
+    open fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) = Unit
 }
+
+interface WebResourceRequest {
+    val url: android.net.Uri
+    val isForMainFrame: Boolean
+}
+
+class WebResourceResponse(val statusCode: Int)
+class WebResourceError(val errorCode: Int)
 
 class WebView(context: android.content.Context) {
     val settings: WebSettings = WebSettings()
     var webViewClient: WebViewClient = WebViewClient()
+    fun evaluateJavascript(script: String, callback: (String) -> Unit) = Unit
     fun loadUrl(url: String) = Unit
     fun stopLoading() = Unit
     fun destroy() = Unit
