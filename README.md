@@ -14,7 +14,7 @@ It has two front-ends over one shared engine:
 
 ## How it works
 
-Inspector consumes `io.grimoire:extensions-core:1.3.0-SNAPSHOT`, the shared
+Inspector consumes `io.grimoire:extensions-core:1.3.0`, the shared
 JVM source API. It compiles only `lib/` and extension sources from checkouts,
 discovers `@SourceInfo` with ClassGraph, and installs an explicit JVM HTTP
 platform before constructing sources. The API's Android sources and AAR are
@@ -49,8 +49,7 @@ private R18 repo). To avoid retyping, set `grimoireExtDir=…` in
 ```bash
 EXT=/path/to/grimoire-extensions
 
-# Before extensions-core is published, use the shared-runtime API checkout:
-# add -Papi=/path/to/grimoire-extensions-api to every Gradle command below.
+# For local API development, optionally add -Papi=/path/to/grimoire-extensions-api.
 
 # list discovered sources (+ capabilities)
 ./gradlew -q run -Pext=$EXT --args="list"
@@ -107,8 +106,7 @@ Vite proxies the API and hot-reloads on save.
 ## Shared-runtime verification
 
 ```sh
-./gradlew clean test installDist -Pext=/path/to/grimoire-extensions \
-  -Papi=/path/to/grimoire-extensions-api --no-build-cache
+./gradlew clean test installDist -Pext=/path/to/grimoire-extensions --no-build-cache
 ./build/install/inspector/bin/inspector run --all --offline --json
 ```
 
@@ -117,3 +115,8 @@ compiler outputs. Tests verify single-copy core ownership, real source discovery
 cookie isolation, HTTP sharing, dynamic UA changes and challenge reporting.
 See [local migration validation](docs/shared-runtime-validation.md) for the
 current evidence and publication boundary.
+
+The JVM CI workflow runs these deterministic tests against the stable published
+core with a minimal extension directory and controlled test-only discovery
+fixtures. It requires no API checkout or Android SDK. Real extension compilation,
+offline suites and live source compatibility remain separate integration checks.

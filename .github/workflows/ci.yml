@@ -1,0 +1,47 @@
+name: JVM build and tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install the wrapper-pinned Gradle through the release API
+        run: |
+          properties=gradle/wrapper/gradle-wrapper.properties
+          version=$(sed -n 's|^distributionUrl=.*gradle-\([0-9.]*\)-bin\.zip\r\?$|\1|p' "$properties")
+          checksum=$(sed -n 's/^distributionSha256Sum=//p' "$properties" | tr -d '\r')
+          [[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
+          [[ "$checksum" =~ ^[0-9a-f]{64}$ ]]
+          destination="$RUNNER_TEMP/inspector-gradle"
+          mkdir -p "$destination"
+          gh release download "v$version" --repo gradle/gradle-distributions \
+            --pattern "gradle-$version-bin.zip" --dir "$destination"
+          printf '%s  %s\n' "$checksum" "$destination/gradle-$version-bin.zip" | sha256sum --check
+          unzip -q "$destination/gradle-$version-bin.zip" -d "$destination"
+          echo "INSPECTOR_GRADLE_BIN=$destination/gradle-$version/bin/gradle" >> "$GITHUB_ENV"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Test with the published core and controlled source fixtures
+        run: |
+          mkdir -p "$RUNNER_TEMP/inspector-extensions"
+          "$INSPECTOR_GRADLE_BIN" test -Pext="$RUNNER_TEMP/inspector-extensions" --no-daemon --stacktrace
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
