@@ -4,6 +4,7 @@ import io.github.classgraph.ClassGraph
 import io.grimoire.api.source.Source
 import io.grimoire.api.source.SourceInfo
 import io.grimoire.api.source.sourceIdFor
+import io.grimoire.inspector.engine.InspectorNetwork
 
 /** A source instance plus its declared @SourceInfo metadata. */
 data class DiscoveredSource(
@@ -26,6 +27,7 @@ object SourceDiscovery {
      * extension never sinks the rest.
      */
     fun discover(): List<DiscoveredSource> {
+        InspectorNetwork.install()
         val out = mutableListOf<DiscoveredSource>()
         ClassGraph()
             .enableClassInfo()

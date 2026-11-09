@@ -176,7 +176,7 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                 }
 
                 // Global User-Agent override (shared across sources, since the
-                // API's NetworkContext UA is a singleton). Match it to the
+                // Inspector host owns the process-wide UA). Match it to the
                 // browser that solved Cloudflare so cf_clearance is accepted.
                 get("/ua") {
                     call.respond(UaDto(NetworkUa.effective(), NetworkUa.isOverridden))
