@@ -1,59 +1,28 @@
 package android.webkit
 
-import java.util.concurrent.ConcurrentHashMap
+import io.grimoire.inspector.engine.InspectorNetwork
+import okhttp3.Cookie
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
-/**
- * Headless replacement for [android.webkit.CookieManager].
- *
- * A real, in-memory cookie store so that the API's `WebViewCookieJar` (and the
- * couple of extensions that read cookies directly) round-trip Set-Cookie within
- * a run — Set-Cookie from one response is replayed on later requests, exactly
- * like the app, just without persistence across runs.
- */
+/** Compatibility bridge for sources that call CookieManager directly. No browser is present. */
 class CookieManager private constructor() {
-
-    // host -> (cookieName -> "name=value")
-    private val store = ConcurrentHashMap<String, ConcurrentHashMap<String, String>>()
-
     fun setCookie(url: String, value: String?) {
-        if (value.isNullOrBlank()) return
-        val host = hostOf(url) ?: return
-        val pair = value.substringBefore(';').trim()
-        val name = pair.substringBefore('=').trim()
-        if (name.isEmpty()) return
-        val v = pair.substringAfter('=', "").trim()
-        val map = store.getOrPut(host) { ConcurrentHashMap() }
-        val expired = v.isEmpty() ||
-            Regex("(?i)max-age\\s*=\\s*0").containsMatchIn(value) ||
-            value.contains("01 Jan 1970", ignoreCase = true)
-        if (expired) map.remove(name) else map[name] = "$name=$v"
+        val target = url.toHttpUrlOrNull() ?: return
+        val cookie = value?.let { Cookie.parse(target, it) } ?: return
+        InspectorNetwork.cookieJar.saveFromResponse(target, listOf(cookie))
     }
-
-    fun getCookie(url: String): String? {
-        val host = hostOf(url) ?: return null
-        val parts = mutableListOf<String>()
-        store.forEach { (h, m) ->
-            if (host == h || host.endsWith(".$h")) parts += m.values
-        }
-        return parts.takeIf { it.isNotEmpty() }?.joinToString("; ")
+    fun getCookie(url: String): String? = url.toHttpUrlOrNull()?.let { target ->
+        InspectorNetwork.cookieJar.loadForRequest(target).takeIf { it.isNotEmpty() }
+            ?.joinToString("; ") { "${it.name}=${it.value}" }
     }
-
     fun flush() = Unit
     fun setAcceptCookie(accept: Boolean) = Unit
     fun acceptCookie(): Boolean = true
-    fun removeAllCookies(callback: Any?) = store.clear()
-    fun removeSessionCookies(callback: Any?) = Unit
-
-    private fun hostOf(url: String): String? = runCatching {
-        java.net.URI(url).host
-    }.getOrNull() ?: url.substringAfter("//", "").substringBefore('/').ifBlank { null }
-
+    fun removeAllCookies(callback: Any?) = InspectorNetwork.cookieJar.clear()
+    fun removeSessionCookies(callback: Any?) = InspectorNetwork.cookieJar.clearSession()
     companion object {
-        @JvmStatic
         private val instance = CookieManager()
-
-        @JvmStatic
-        fun getInstance(): CookieManager = instance
+        @JvmStatic fun getInstance(): CookieManager = instance
     }
 }
 

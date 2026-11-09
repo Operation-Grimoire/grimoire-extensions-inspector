@@ -14,15 +14,17 @@ It has two front-ends over one shared engine:
 
 ## How it works
 
-Extensions are normal Kotlin (`HttpSource` → OkHttp, `ParsedHttpSource` →
-Jsoup). The only Android coupling in the API + extensions is a tiny, bounded set
-of symbols (`android.webkit.CookieManager`, `Context`, `WebSettings`,
-`WebView`, `Handler`/`Looper`, `@SuppressLint`, plus `org.json`). This project
-supplies minimal **android-stubs** (`src/main/kotlin/stubs/`) — a real in-memory
-`CookieManager` and compile-only stubs for the rest — then compiles the API,
-`lib/`, and every extension's `src/main` **from the sibling checkouts** into one
-JVM classpath, discovers sources by scanning the `@SourceInfo` annotation, and
-runs them live.
+Inspector consumes `io.grimoire:extensions-core:1.3.0-SNAPSHOT`, the shared
+JVM source API. It compiles only `lib/` and extension sources from checkouts,
+discovers `@SourceInfo` with ClassGraph, and installs an explicit JVM HTTP
+platform before constructing sources. The API's Android sources and AAR are
+not on its classpath.
+
+`InspectorNetwork` owns an ephemeral OkHttp cookie store and the process-wide
+User-Agent override. The `CookieManager` compatibility bridge uses that same
+store, so pasted cookies and source HTTP requests share domain/path/Secure and
+expiry rules. Other Android stubs exist only for source compatibility. The
+`NetworkContext.context` shim always returns null; there is no browser engine.
 
 Cloudflare JS challenges can't be solved headlessly, so they're reported as a
 `CLOUDFLARE_BLOCKED` warning rather than crashing.
@@ -30,8 +32,12 @@ Cloudflare JS challenges can't be solved headlessly, so they're reported as a
 ## Which extensions to test
 
 You pass the extensions repo path **every run** with `-Pext=<path>` — it is not
-assumed to live anywhere in particular. The API and `lib/` default to next-to /
-inside that path; override with `-Papi` / `-Plib` if needed. Point `-Pext` at
+assumed to live anywhere in particular. The `lib/` path defaults to inside that checkout; override with `-Plib`.
+For local API development, pass `-Papi` pointing to an API checkout containing
+`core/`. Gradle substitutes the core artifact with that project; it never adds
+API source roots to Inspector. Without `-Papi`, GitHub Packages credentials
+(`GITHUB_ACTOR`, `GITHUB_TOKEN`) are required for the published core artifact.
+Override its version with `-PextensionsCoreVersion=VERSION`. Point `-Pext` at
 any repo of the same `src/{lang}/{name}` shape (the main repo, a fork, or the
 private R18 repo). To avoid retyping, set `grimoireExtDir=…` in
 `gradle.properties` or `~/.gradle/gradle.properties`.
@@ -42,6 +48,9 @@ private R18 repo). To avoid retyping, set `grimoireExtDir=…` in
 
 ```bash
 EXT=/path/to/grimoire-extensions
+
+# Before extensions-core is published, use the shared-runtime API checkout:
+# add -Papi=/path/to/grimoire-extensions-api to every Gradle command below.
 
 # list discovered sources (+ capabilities)
 ./gradlew -q run -Pext=$EXT --args="list"
@@ -91,6 +100,20 @@ Vite proxies the API and hot-reloads on save.
 ## Hot reload
 
 - **Frontend:** `npm run dev` (above) — instant.
-- **Extension / lib / API code:** edit and re-run; incremental Kotlin compile
+- **Extension / lib / local composite core code:** edit and re-run; incremental Kotlin compile
   picks it up (no APK, no install). The running server doesn't swap classes —
   restart `serve` to pick up source edits.
+
+## Shared-runtime verification
+
+```sh
+./gradlew clean test installDist -Pext=/path/to/grimoire-extensions \
+  -Papi=/path/to/grimoire-extensions-api --no-build-cache
+./build/install/inspector/bin/inspector run --all --offline --json
+```
+
+Use `clean` when switching extension checkout paths to avoid stale incremental
+compiler outputs. Tests verify single-copy core ownership, real source discovery,
+cookie isolation, HTTP sharing, dynamic UA changes and challenge reporting.
+See [local migration validation](docs/shared-runtime-validation.md) for the
+current evidence and publication boundary.

@@ -14,7 +14,7 @@ One shared engine, two front-ends:
 ## Running it
 
 **The extensions repo path is required every run** via `-Pext=<path>` (it is not
-assumed to be a sibling). API + lib default to next-to / inside that path; the
+assumed to be a sibling). The lib defaults to inside that path; the
 build fails fast with guidance if `-Pext` is missing. You can instead set
 `grimoireExtDir=…` in `gradle.properties` / `~/.gradle/gradle.properties` to
 avoid retyping.
@@ -38,8 +38,9 @@ the server; plain `run`/`list` never touch Node, so the CLI stays usable for
 agents/CI without npm. `run --args="serve"` also works but serves the
 last-built UI (no rebuild).
 
-Optional path overrides (defaults derive from `-Pext`):
-`-Papi=<grimoire-extensions-api>`, `-Plib=<lib-root>`,
+Optional path overrides: `-Papi=<grimoire-extensions-api>` explicitly selects a
+local shared-core composite; no API checkout is inferred from `-Pext`.
+`-Plib=<lib-root>` defaults to the library inside `-Pext`;
 `-PincludeX=true -Pextx=<grimoire-extensions-x>`. Point `-Pext` at any repo of
 the same `src/{lang}/{name}` shape (e.g. a fork or the private R18 repo).
 
@@ -65,46 +66,38 @@ in-memory cookie jar), a global `/api/ua` (GET/POST the User-Agent override), a
 
 ## How it works (the important part)
 
-There is **no Android here**. The harness compiles the API, `lib/`, and every
-extension's `src/main` Kotlin **from sibling checkouts** into one JVM classpath:
+Inspector consumes the shared JVM `extensions-core` artifact. Compile only
+`lib/` and extension source roots in `build.gradle.kts`; never compile API
+sources into this host. `-Papi` / `-PgrimoireApiDir` optionally selects a local
+API composite containing `core/`. Without it, the published artifact requires
+GitHub Packages credentials. `extensionsCoreVersion` selects the artifact version.
 
-- Source roots are wired in `build.gradle.kts` via `sourceSets.main.java.srcDirs`
-  from Gradle properties. `-Pext=<extensions-repo>` is **required** (no sibling
-  default); `-Papi`/`-Plib` default to next-to / inside it; the build throws a
-  guided error for source-hungry tasks when `-Pext` is missing. Add the private
-  repo with `-PincludeX=true -Pextx=…`. Run `./gradlew listSourceDirs -Pext=…`
-  to print exactly what got wired in.
-- The only Android coupling in the API + extensions is a tiny bounded set
-  (`CookieManager`, `Context`, `WebSettings`, `WebView`/`WebViewClient`,
-  `Handler`/`Looper`, `@SuppressLint`, plus `org.json`). It is satisfied by
-  hand-written stubs in `src/main/kotlin/stubs/` — a **real in-memory
-  `CookieManager`** (so `WebViewCookieJar` round-trips cookies) and **compile-only**
-  no-ops for the rest. `org.json` comes from the `org.json:json` artifact.
-- Sources are discovered by scanning the `@SourceInfo` annotation with ClassGraph
-  (`acceptPackages("io.grimoire.extension", "io.grimoire.extensions")` — never the
-  bundled Tachiyomi `eu.kanade.*` tree) and instantiated via their no-arg ctor,
-  exactly like the app.
+`SourceDiscovery.discover()` installs `InspectorNetwork` before constructing
+sources. Keep ClassGraph restricted to `io.grimoire.extension` and
+`io.grimoire.extensions`; never scan the bundled Tachiyomi tree. Sources use the
+same host `Source` class and singleton HTTP client. The host overrides UA through
+`NetworkUa`, without reflection or Android `NetworkContext` mutation.
 
-**Hot reload** = edit any extension / `lib` / API `.kt` and re-run. Incremental
-Kotlin compile picks it up; no APK, no install. Adding a new extension dir is
-auto-discovered on the next run.
+`InspectorNetwork.cookieJar` is ephemeral. OkHttp parses Set-Cookie and matches
+host/domain, path, expiry and Secure. The stub `android.webkit.CookieManager`
+bridges into that store for source calls and the web Cookies tab. It does not
+run a browser. Other Android symbols are compile-only shims. The source-facing
+`NetworkContext.context` shim always returns null and cannot be initialized.
 
-### Two deliberate headless limits
-- `NetworkContext` is never `init`'d, so `NetworkContext.userAgent` falls back to
-  its hardcoded UA and the Cloudflare WebView path is unreachable — a challenge
-  throws `CloudflareException`, which the engine catches and reports as a
-  `CLOUDFLARE_BLOCKED` **warning** (not a crash). Don't "fix" this by feeding a
-  Context; it can't solve JS challenges headlessly anyway. You *can* paste a
-  browser's `cf_clearance` (Cookies tab) — but CF binds it to the solving UA, so
-  pair it with the UA override (`engine/NetworkUa.kt` reflects the singleton's
-  cached UA; `GET`/`POST /api/ua`, toggled from the Cookies tab) set to that
-  browser's `navigator.userAgent`.
-- Interactive WebView login can't run. The Login tab only reports state; the
-  dedicated **Cookies** tab (every source has one, independent of login support)
-  takes session cookies pasted from a real browser — incl. `cf_clearance` to get
-  past a `CLOUDFLARE_BLOCKED` warning — and injects them into the stub
-  `CookieManager`. Note `cf_clearance` is bound to the solving browser's UA + IP,
-  so it can still be rejected if those differ from the host.
+### Headless limits
+
+The core's shared challenge detector is used by the Inspector platform. A
+challenge raises `CloudflareException`, which the suite reports as
+`CLOUDFLARE_BLOCKED`. Ordinary origin errors remain ordinary HTTP responses.
+Do not provide a Context or pretend the stubs can solve JavaScript challenges.
+Interactive WebView login is unavailable. Pasted browser cookies can be paired
+with a UA override through the existing web endpoints; device-bound challenges
+can still reject them.
+
+Run `clean test installDist -Pext=... -Papi=... --no-build-cache` for migration
+validation. Clean when changing source checkout paths: incremental outputs can
+otherwise retain or omit classes. `run --all --offline` tests structural source
+behavior; it does not establish Android or live browser compatibility.
 
 ## Layout
 
@@ -193,8 +186,10 @@ URL params carry the source-defined `url`/`query` strings; `vite.config.ts` uses
 
 ## Don'ts
 
-- **Don't pull the API/extensions in as `.aar`/published artifacts** — they drag
-  Android. Compile them from source against the stubs (the current setup).
+- Consume the published JVM `extensions-core` artifact, optionally substituted
+  by an explicit local API composite. Do not load the Android AAR or compile
+  API source roots into Inspector. Lib/extension source compilation still uses
+  the bounded compatibility stubs.
 - **Don't add the Tachiyomi `extensions-source` checkout** to the source roots,
   and don't widen the ClassGraph `acceptPackages`.
 - **Don't init `NetworkContext`** or try to make Cloudflare/WebView "work"

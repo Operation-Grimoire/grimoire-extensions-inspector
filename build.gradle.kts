@@ -6,12 +6,19 @@ plugins {
 
 repositories {
     mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/Operation-Grimoire/grimoire-extensions-api")
+        credentials {
+            username = System.getenv("GITHUB_ACTOR") ?: ""
+            password = System.getenv("GITHUB_TOKEN") ?: ""
+        }
+    }
 }
 
 // --- Which extensions to compile & inspect (REQUIRED at run time) ------------
 // The extensions repo is not assumed to live anywhere in particular — you pass
 // its path each run:  -Pext=/path/to/grimoire-extensions  (alias: -PgrimoireExtDir).
-// API and lib default to next-to / inside the extensions repo; override if not:
+// Lib defaults to inside the extension repo. API is an optional core composite:
 //   -Papi=/path/to/grimoire-extensions-api   (alias -PgrimoireApiDir)
 //   -Plib=/path/to/lib-root                  (alias -PgrimoireLibDir)
 // A value put in gradle.properties / ~/.gradle/gradle.properties also satisfies it.
@@ -21,7 +28,7 @@ fun prop(vararg keys: String): String? =
     keys.firstNotNullOfOrNull { providers.gradleProperty(it).orNull?.takeIf { v -> v.isNotBlank() } }
 
 val extDir = prop("ext", "grimoireExtDir")
-val apiDir = prop("api", "grimoireApiDir") ?: extDir?.let { "$it/../grimoire-extensions-api" }
+val apiDir = prop("api", "grimoireApiDir")
 val libDir = prop("lib", "grimoireLibDir") ?: extDir?.let { "$it/lib" }
 val xDir = prop("extx", "grimoireExtXDir")
 val includeX = (prop("includeX", "grimoireIncludeX"))?.toBoolean() ?: false
@@ -30,7 +37,7 @@ val includeX = (prop("includeX", "grimoireIncludeX"))?.toBoolean() ?: false
 // is missing — `gradlew tasks`, `help`, etc. still work without it.
 val sourceHungryTasks = setOf(
     "run", "serve", "dev", "compileKotlin", "compileJava", "classes", "build", "assemble",
-    "jar", "installDist", "distZip", "distTar", "listSourceDirs",
+    "jar", "installDist", "distZip", "distTar", "listSourceDirs", "test", "check",
 )
 val needsSources = gradle.startParameter.taskNames.any { it.substringAfterLast(':') in sourceHungryTasks }
 if (needsSources && extDir == null) {
@@ -41,7 +48,7 @@ if (needsSources && extDir == null) {
 
           ./gradlew run -Pext=/path/to/grimoire-extensions --args="run --all --json"
 
-        Optional overrides (default next to / inside -Pext):
+        Optional overrides (API is an explicit core composite; lib defaults inside -Pext):
           -Papi=/path/to/grimoire-extensions-api
           -Plib=/path/to/lib-root
           -PincludeX=true -Pextx=/path/to/grimoire-extensions-x
@@ -63,10 +70,8 @@ fun extensionSrcDirs(root: String): List<String> {
     return out
 }
 
-// API + lib + every extension, compiled from source as plain JVM Kotlin against
-// our android-stubs (in src/main/kotlin). No Android SDK, no AGP, no emulator.
+// Only lib + extensions are compiled here. The API is the host's shared JVM artifact.
 val upstreamSrc: List<String> = if (extDir == null) emptyList() else buildList {
-    apiDir?.let { add(file("$it/api/src/main/java").path) }
     libDir?.let { add(file("$it/src/main/java").path) }
     addAll(extensionSrcDirs(extDir))
     if (includeX && xDir != null) addAll(extensionSrcDirs(xDir))
@@ -81,6 +86,7 @@ sourceSets {
 }
 
 dependencies {
+    implementation("io.grimoire:extensions-core:${prop("extensionsCoreVersion") ?: "1.3.0-SNAPSHOT"}")
     // Same versions the API/extensions use, so runtime behaviour is identical.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jsoup:jsoup:1.17.2")
@@ -97,7 +103,12 @@ dependencies {
     implementation("io.ktor:ktor-server-cio:$ktor")
     implementation("io.ktor:ktor-server-content-negotiation:$ktor")
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktor")
+    testImplementation(kotlin("test-junit5"))
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
 }
+
+tasks.test { useJUnitPlatform() }
 
 kotlin {
     jvmToolchain(21)
