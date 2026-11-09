@@ -14,8 +14,8 @@ dependencyResolutionManagement {
 rootProject.name = "grimoire-extensions-inspector"
 
 // Optional source development; the host still consumes a JVM artifact, never API sources.
-val apiDir = providers.gradleProperty("api").orNull
-    ?: providers.gradleProperty("grimoireApiDir").orNull
+val apiDir = providers.gradleProperty("api").orNull?.takeIf { it.isNotBlank() }
+    ?: providers.gradleProperty("grimoireApiDir").orNull?.takeIf { it.isNotBlank() }
 apiDir?.let {
     require(file("$it/core/build.gradle.kts").isFile) { "-Papi must point to an API checkout with extensions-core" }
     includeBuild(it) {

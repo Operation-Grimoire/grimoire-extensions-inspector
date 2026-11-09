@@ -36,3 +36,19 @@ The web API routes remain the same, but browser UI interactions were not rerun.
 The published-package path and remote CI are unexecuted. Until the core package
 is published, use the explicit API composite above. Coordinate producer and
 Inspector consumer changes before relying on the changed API source layout.
+
+## Review regressions
+
+All six deterministic tests now pass with both a minimal extension checkout and
+the full current checkout. Discovery identity/version assertions use a controlled
+test-only source rather than Royal Road or its release version. The installed
+application still discovers exactly 26 real sources; it does not package the fixture.
+
+The cookie-ingress regression first reproduced plaintext planting/overwriting of
+Secure cookies. HTTP responses now cannot store Secure cookies or downgrade/delete
+an existing same-key Secure cookie. HTTPS rotation still passes. Empty `api`
+properties also fall through to the explicit `grimoireApiDir` alias consistently;
+both test builds exercised that configuration.
+
+The full offline suite again passed with zero errors/warnings. Live Royal Road
+again completed with zero errors and the same two missing-thumbnail warnings.

@@ -6,9 +6,9 @@ import io.grimoire.api.network.defaultOkHttpClient
 import io.grimoire.api.source.Source
 import io.grimoire.api.source.http.HttpSource
 import io.grimoire.api.source.sourceIdFor
+import io.grimoire.extension.inspectorfixture.InspectorDiscoveryFixture
 import io.grimoire.inspector.engine.InspectorNetwork
 import io.grimoire.inspector.engine.NetworkUa
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -55,6 +55,23 @@ class InspectorNetworkTest {
         assertNull(cm.getCookie("https://example.com/"))
     }
 
+    @Test fun `plaintext responses cannot plant or overwrite HTTPS secure cookies`() {
+        MockWebServer().use { server ->
+            val http = server.url("/")
+            val https = http.newBuilder().scheme("https").build()
+            cm.setCookie(https.toString(), "session=trusted; Secure; Path=/")
+            listOf("session=attacker; Secure; Path=/", "session=attacker; Path=/",
+                "session=gone; Max-Age=0; Path=/", "planted=attacker; Secure; Path=/").forEach { value ->
+                server.enqueue(MockResponse().addHeader("Set-Cookie", value))
+                defaultOkHttpClient().newCall(Request.Builder().url(http).build()).execute().close()
+                assertNull(server.takeRequest().getHeader("Cookie"))
+                assertEquals("session=trusted", cm.getCookie(https.toString()))
+            }
+            cm.setCookie(https.toString(), "session=rotated; Secure; Path=/")
+            assertEquals("session=rotated", cm.getCookie(https.toString()))
+        }
+    }
+
     @Test fun `HTTP responses and direct source cookie calls share the same store and UA`() {
         MockWebServer().use { server ->
             val client = defaultOkHttpClient()
@@ -97,10 +114,10 @@ class InspectorNetworkTest {
     }
 
     @Test fun `discovery uses the single host API artifact and stable source identity`() {
-        val royal = SourceDiscovery.discover().single { it.className == "io.grimoire.extension.en.royalroad.RoyalRoad" }
-        assertEquals(sourceIdFor("io.grimoire.extension.en.royalroad"), royal.id)
-        assertEquals(5, royal.versionCode)
-        assertSame(defaultOkHttpClient(), (royal.instance as HttpSource).client)
+        val fixture = SourceDiscovery.discover().single { it.className == InspectorDiscoveryFixture::class.java.name }
+        assertEquals(sourceIdFor("io.grimoire.extension.inspectorfixture"), fixture.id)
+        assertEquals(73, fixture.versionCode)
+        assertSame(defaultOkHttpClient(), (fixture.instance as HttpSource).client)
         val resources = Source::class.java.classLoader.getResources("io/grimoire/api/source/Source.class").toList()
         assertEquals(1, resources.size)
         assertTrue(resources.single().toString().contains("extensions-core"), resources.toString())

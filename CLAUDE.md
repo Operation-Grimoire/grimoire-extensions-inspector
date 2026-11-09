@@ -38,8 +38,9 @@ the server; plain `run`/`list` never touch Node, so the CLI stays usable for
 agents/CI without npm. `run --args="serve"` also works but serves the
 last-built UI (no rebuild).
 
-Optional path overrides (defaults derive from `-Pext`):
-`-Papi=<grimoire-extensions-api>`, `-Plib=<lib-root>`,
+Optional path overrides: `-Papi=<grimoire-extensions-api>` explicitly selects a
+local shared-core composite; no API checkout is inferred from `-Pext`.
+`-Plib=<lib-root>` defaults to the library inside `-Pext`;
 `-PincludeX=true -Pextx=<grimoire-extensions-x>`. Point `-Pext` at any repo of
 the same `src/{lang}/{name}` shape (e.g. a fork or the private R18 repo).
 
@@ -185,8 +186,10 @@ URL params carry the source-defined `url`/`query` strings; `vite.config.ts` uses
 
 ## Don'ts
 
-- **Don't pull the API/extensions in as `.aar`/published artifacts** — they drag
-  Android. Compile them from source against the stubs (the current setup).
+- Consume the published JVM `extensions-core` artifact, optionally substituted
+  by an explicit local API composite. Do not load the Android AAR or compile
+  API source roots into Inspector. Lib/extension source compilation still uses
+  the bounded compatibility stubs.
 - **Don't add the Tachiyomi `extensions-source` checkout** to the source roots,
   and don't widen the ClassGraph `acceptPackages`.
 - **Don't init `NetworkContext`** or try to make Cloudflare/WebView "work"

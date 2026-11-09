@@ -32,9 +32,13 @@ class InspectorCookieJar : CookieJar {
     @Synchronized
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
         val now = System.currentTimeMillis()
-        cookies.filter { url.host == it.domain || (!it.hostOnly && url.host.endsWith(".${it.domain}")) }
+        this.cookies.values.removeIf { it.expiresAt <= now }
+        cookies.filter { (url.isHttps || !it.secure) &&
+            (url.host == it.domain || (!it.hostOnly && url.host.endsWith(".${it.domain}"))) }
             .forEach { cookie ->
                 val key = Key(cookie.name, cookie.domain, cookie.path)
+                // A plaintext response cannot downgrade or delete an existing Secure cookie.
+                if (!url.isHttps && this.cookies[key]?.secure == true) return@forEach
                 if (cookie.expiresAt <= now) this.cookies.remove(key) else this.cookies[key] = cookie
             }
     }
