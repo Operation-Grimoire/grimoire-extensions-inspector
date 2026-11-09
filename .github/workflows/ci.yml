@@ -1,0 +1,32 @@
+name: JVM build and tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test with the published core and controlled source fixtures
+        run: |
+          chmod +x gradlew
+          mkdir -p "$RUNNER_TEMP/inspector-extensions"
+          ./gradlew test -Pext="$RUNNER_TEMP/inspector-extensions" --no-daemon --stacktrace
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
