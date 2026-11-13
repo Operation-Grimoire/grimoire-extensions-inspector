@@ -86,7 +86,7 @@ sourceSets {
 }
 
 // The published 1.4.1-SNAPSHOT changes when API main does. Do not keep it for 24 hours.
-configurations.all {
+configurations.configureEach {
     resolutionStrategy.cacheChangingModulesFor(0, "seconds")
 }
 
