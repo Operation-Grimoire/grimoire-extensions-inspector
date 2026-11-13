@@ -85,8 +85,13 @@ sourceSets {
     }
 }
 
+// The published 1.4.1-SNAPSHOT changes when API main does. Do not keep it for 24 hours.
+configurations.configureEach {
+    resolutionStrategy.cacheChangingModulesFor(0, "seconds")
+}
+
 dependencies {
-    implementation("io.grimoire:extensions-core:${prop("extensionsCoreVersion") ?: "1.3.0"}")
+    implementation("io.grimoire:extensions-core:${prop("extensionsCoreVersion") ?: "1.4.1-SNAPSHOT"}")
     // Same versions the API/extensions use, so runtime behaviour is identical.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jsoup:jsoup:1.17.2")

@@ -1,6 +1,9 @@
 package io.grimoire.inspector.engine
 
 import io.grimoire.api.network.CloudflareException
+import io.grimoire.api.network.JarCookieStore
+import io.grimoire.api.network.SourceBrowserCookies
+import io.grimoire.api.network.SourceCookieStore
 import io.grimoire.api.network.SourceHttpPlatform
 import io.grimoire.api.network.SourceNetwork
 import io.grimoire.api.network.isSourceBrowserChallenge
@@ -10,8 +13,9 @@ import okhttp3.HttpUrl
 import okhttp3.Interceptor
 
 /** Explicit JVM host: no Android networking classes or reflective UA mutation. */
-object InspectorNetwork : SourceHttpPlatform {
+object InspectorNetwork : SourceHttpPlatform, SourceBrowserCookies {
     override val cookieJar = InspectorCookieJar()
+    override val cookies: SourceCookieStore = JarCookieStore(cookieJar)
     override val userAgent: String get() = NetworkUa.effective()
     override val interceptors = listOf(Interceptor { chain ->
         val response = chain.proceed(chain.request())

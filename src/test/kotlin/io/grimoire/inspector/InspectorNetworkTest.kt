@@ -2,6 +2,7 @@ package io.grimoire.inspector
 
 import android.webkit.CookieManager
 import io.grimoire.api.network.CloudflareException
+import io.grimoire.api.network.SourceCookies
 import io.grimoire.api.network.defaultOkHttpClient
 import io.grimoire.api.source.Source
 import io.grimoire.api.source.http.HttpSource
@@ -23,6 +24,15 @@ class InspectorNetworkTest {
         InspectorNetwork.install()
         InspectorNetwork.cookieJar.clear()
         NetworkUa.clear()
+    }
+
+    @Test fun `source cookie calls share the host store`() {
+        SourceCookies.set("https://example.com/", "uid=7; Path=/")
+        assertTrue(cm.getCookie("https://example.com/")!!.contains("uid=7"))
+        assertTrue(SourceCookies.header("https://example.com/").contains("uid=7"))
+        SourceCookies.set("https://example.com/", "uid=; Max-Age=0; Path=/")
+        val after = cm.getCookie("https://example.com/")
+        assertTrue(after == null || !after.contains("uid="))
     }
 
     @Test fun `host-only domain path secure and expiry are enforced`() {

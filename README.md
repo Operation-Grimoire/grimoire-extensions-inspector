@@ -14,17 +14,20 @@ It has two front-ends over one shared engine:
 
 ## How it works
 
-Inspector consumes `io.grimoire:extensions-core:1.3.0`, the shared
+Inspector consumes `io.grimoire:extensions-core:1.4.1-SNAPSHOT`, the shared
 JVM source API. It compiles only `lib/` and extension sources from checkouts,
 discovers `@SourceInfo` with ClassGraph, and installs an explicit JVM HTTP
 platform before constructing sources. The API's Android sources and AAR are
 not on its classpath.
 
 `InspectorNetwork` owns an ephemeral OkHttp cookie store and the process-wide
-User-Agent override. The `CookieManager` compatibility bridge uses that same
-store, so pasted cookies and source HTTP requests share domain/path/Secure and
-expiry rules. Other Android stubs exist only for source compatibility. The
-`NetworkContext.context` shim always returns null; there is no browser engine.
+User-Agent override, and exposes that store through `SourceBrowserCookies`.
+Extension code reads and expires cookies with `SourceCookies`. The
+`CookieManager` compatibility bridge uses that same store, so pasted cookies
+and source HTTP requests share domain/path/Secure and expiry rules. Other
+Android stubs exist only for source compatibility. The `NetworkContext.context`
+shim always returns null, and `SourceBrowser.ready` stays false; there is no
+browser engine.
 
 Cloudflare JS challenges can't be solved headlessly, so they're reported as a
 `CLOUDFLARE_BLOCKED` warning rather than crashing.
