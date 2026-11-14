@@ -14,7 +14,7 @@ It has two front-ends over one shared engine:
 
 ## How it works
 
-Inspector consumes `io.grimoire:extensions-core:1.4.1-SNAPSHOT`, the shared
+Inspector consumes stable `io.grimoire:extensions-core:1.5.0`, the shared
 JVM source API. It compiles only `lib/` and extension sources from checkouts,
 discovers `@SourceInfo` with ClassGraph, and installs an explicit JVM HTTP
 platform before constructing sources. The API's Android sources and AAR are
