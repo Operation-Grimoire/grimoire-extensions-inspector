@@ -45,6 +45,11 @@ export interface Chapter {
   locked: boolean;
 }
 
+export interface ChapterPage {
+  chapters: Chapter[];
+  nextCursor?: string | null;
+}
+
 export interface Page {
   index: number;
   text: string;
@@ -161,6 +166,8 @@ export const api = {
   novel: (id: SourceId, url: string) => post<Novel>(`/api/sources/${id}/novel`, { url }),
   chapters: (id: SourceId, url: string, page?: number, concurrency?: number) =>
     post<Chapter[]>(`/api/sources/${id}/chapters`, { url, page, concurrency }),
+  chapterPage: (id: SourceId, url: string, cursor?: string | null) =>
+    post<ChapterPage>(`/api/sources/${id}/chapters/cursor`, { url, cursor }),
   pages: (id: SourceId, url: string) => post<Page[]>(`/api/sources/${id}/pages`, { url }),
   epub: (id: SourceId, url: string) => post<EpubResult>(`/api/sources/${id}/epub`, { url }),
   epubDownloadUrl: (id: SourceId, url: string) =>

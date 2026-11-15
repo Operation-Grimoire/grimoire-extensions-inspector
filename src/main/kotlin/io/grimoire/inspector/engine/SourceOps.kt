@@ -3,6 +3,7 @@ package io.grimoire.inspector.engine
 import io.grimoire.api.model.filter.Filter
 import io.grimoire.api.model.lang.Language
 import io.grimoire.api.model.novel.Chapter
+import io.grimoire.api.model.novel.ChapterPage
 import io.grimoire.api.model.novel.Novel
 import io.grimoire.api.model.novel.NovelPage
 import io.grimoire.api.model.pref.PrefValue
@@ -19,8 +20,10 @@ import io.grimoire.api.source.feature.SearchSource
 import io.grimoire.api.source.feature.WebViewLoginSource
 import io.grimoire.api.source.http.HttpSource
 import io.grimoire.api.source.web.ChapterListSource
+import io.grimoire.api.source.web.CursorPaginatedSource
 import io.grimoire.api.source.web.PageListSource
 import io.grimoire.api.source.web.PaginatedSource
+import io.grimoire.api.source.web.getAllChapters
 import io.grimoire.inspector.DiscoveredSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -52,6 +55,7 @@ class SourceOps(val ds: DiscoveredSource) {
     private val filterSrc = source as? FilterSource
     private val chapterListSrc = source as? ChapterListSource
     private val paginatedSrc = source as? PaginatedSource
+    private val cursorPaginatedSrc = source as? CursorPaginatedSource
     private val pageListSrc = source as? PageListSource
     private val multiHost = source as? MultiHostSource
     private val multiLang = source as? MultiLanguageSource
@@ -107,16 +111,23 @@ class SourceOps(val ds: DiscoveredSource) {
     suspend fun chapters(url: String, page: Int? = null, concurrency: Int = 1): List<Chapter> {
         val novel = stubNovel(url)
         val paged = paginatedSrc
+        val cursor = cursorPaginatedSrc
         // Explicit page → that single page. No page → the full list: a paginated
         // source's getChapterList(novel) only returns page 1, so walk pages until
         // one is empty or stops yielding new URLs (overflow guard), accumulating.
         // concurrency>1 fetches pages in parallel batches (faster for long lists).
         return when {
+            page != null && cursor != null -> error("${ds.name} uses cursor pagination, not numbered pages")
             page != null && paged != null -> paged.getChapterList(novel, page)
+            cursor != null -> cursor.getAllChapters(novel, MAX_CHAPTER_PAGES)
             paged != null -> allChapterPages(paged, novel, concurrency.coerceIn(1, MAX_CHAPTER_CONCURRENCY))
             else -> (chapterListSrc ?: error("${ds.name} does not support a chapter list")).getChapterList(novel)
         }
     }
+
+    suspend fun chapterPage(url: String, cursor: String?): ChapterPage =
+        (cursorPaginatedSrc ?: error("${ds.name} does not support cursor pagination"))
+            .getChapterList(stubNovel(url), cursor)
 
     private suspend fun allChapterPages(paged: PaginatedSource, novel: Novel, concurrency: Int): List<Chapter> {
         val all = mutableListOf<Chapter>()
@@ -193,6 +204,7 @@ class SourceOps(val ds: DiscoveredSource) {
         if (source is FilterSource) add("FilterSource")
         if (source is ChapterListSource) add("ChapterListSource")
         if (source is PaginatedSource) add("PaginatedSource")
+        if (source is CursorPaginatedSource) add("CursorPaginatedSource")
         if (source is PageListSource) add("PageListSource")
         if (source is ConfigurableSource) add("ConfigurableSource")
         if (source is WebViewLoginSource) add("WebViewLoginSource")

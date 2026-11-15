@@ -14,11 +14,13 @@ It has two front-ends over one shared engine:
 
 ## How it works
 
-Inspector consumes stable `io.grimoire:extensions-core:1.5.0`, the shared
-JVM source API. It compiles only `lib/` and extension sources from checkouts,
+Inspector currently develops against `io.grimoire:extensions-core:1.6.0-SNAPSHOT`,
+the shared JVM source API. It compiles only `lib/` and extension sources from checkouts,
 discovers `@SourceInfo` with ClassGraph, and installs an explicit JVM HTTP
 platform before constructing sources. The API's Android sources and AAR are
-not on its classpath.
+not on its classpath. `CursorPaginatedSource` chapter lists use the API's shared
+sequential walker; `/chapters/cursor` exposes one cursor page and its continuation
+for targeted checks without forcing a full walk.
 
 `InspectorNetwork` owns an ephemeral OkHttp cookie store and the process-wide
 User-Agent override, and exposes that store through `SourceBrowserCookies`.
