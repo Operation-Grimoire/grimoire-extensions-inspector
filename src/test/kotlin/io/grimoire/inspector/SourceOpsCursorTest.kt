@@ -37,7 +37,7 @@ class SourceOpsCursorTest {
         assertEquals(listOf(1f, 2f, 3f), ops.chapters("book", concurrency = 4).map { it.chapterNumber })
         assertEquals(listOf(null, "cursor-1", "cursor-2"), source.calls)
         val error = assertFailsWith<IllegalStateException> { ops.chapters("book", page = 2) }
-        assertTrue("cursor" in error.message.orEmpty().lowercase())
+        assertEquals("Cursor fixture uses cursor pagination, not numbered pages", error.message)
     }
 
     @Test
@@ -47,5 +47,6 @@ class SourceOpsCursorTest {
         val second = ops.chapterPage("book", first.nextCursor)
         assertEquals("cursor-2", second.nextCursor)
         assertEquals(2f, second.chapters.single().chapterNumber)
+        assertEquals(listOf(null, "cursor-1"), source.calls)
     }
 }

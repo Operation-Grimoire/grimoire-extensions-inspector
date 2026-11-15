@@ -121,7 +121,7 @@ cookie isolation, HTTP sharing, dynamic UA changes and challenge reporting.
 See [local migration validation](docs/shared-runtime-validation.md) for the
 current evidence and publication boundary.
 
-The JVM CI workflow runs these deterministic tests against the stable published
+The JVM CI workflow runs these deterministic tests against the configured published
 core with a minimal extension directory and controlled test-only discovery
 fixtures. It requires no API checkout or Android SDK. Real extension compilation,
 offline suites and live source compatibility remain separate integration checks.
