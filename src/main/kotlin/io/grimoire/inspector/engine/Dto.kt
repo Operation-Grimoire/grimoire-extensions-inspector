@@ -2,6 +2,7 @@ package io.grimoire.inspector.engine
 
 import io.grimoire.api.model.filter.Filter
 import io.grimoire.api.model.novel.Chapter
+import io.grimoire.api.model.novel.ChapterPage
 import io.grimoire.api.model.novel.Novel
 import io.grimoire.api.model.novel.NovelPage
 import io.grimoire.api.model.novel.PageContent
@@ -41,6 +42,11 @@ data class ChapterDto(
 )
 
 fun Chapter.toDto() = ChapterDto(url, name, uploadDate, chapterNumber, translator, locked)
+
+@Serializable
+data class ChapterPageDto(val chapters: List<ChapterDto>, val nextCursor: String? = null)
+
+fun ChapterPage.toDto() = ChapterPageDto(chapters.map { it.toDto() }, nextCursor)
 
 @Serializable
 data class PageDto(
@@ -106,6 +112,9 @@ data class SearchReq(val query: String, val page: Int = 1)
 
 @Serializable
 data class UrlReq(val url: String, val page: Int? = null, val concurrency: Int? = null)
+
+@Serializable
+data class CursorPageReq(val url: String, val cursor: String? = null)
 
 @Serializable
 data class PrefsReq(val values: Map<String, String> = emptyMap())

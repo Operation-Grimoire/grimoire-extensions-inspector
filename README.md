@@ -14,11 +14,13 @@ It has two front-ends over one shared engine:
 
 ## How it works
 
-Inspector consumes stable `io.grimoire:extensions-core:1.5.0`, the shared
-JVM source API. It compiles only `lib/` and extension sources from checkouts,
+Inspector currently develops against `io.grimoire:extensions-core:1.6.0-SNAPSHOT`,
+the shared JVM source API. It compiles only `lib/` and extension sources from checkouts,
 discovers `@SourceInfo` with ClassGraph, and installs an explicit JVM HTTP
 platform before constructing sources. The API's Android sources and AAR are
-not on its classpath.
+not on its classpath. `CursorPaginatedSource` chapter lists use the API's shared
+sequential walker; `/chapters/cursor` exposes one cursor page and its continuation
+for targeted checks without forcing a full walk.
 
 `InspectorNetwork` owns an ephemeral OkHttp cookie store and the process-wide
 User-Agent override, and exposes that store through `SourceBrowserCookies`.
@@ -40,7 +42,9 @@ For local API development, pass `-Papi` pointing to an API checkout containing
 `core/`. Gradle substitutes the core artifact with that project; it never adds
 API source roots to Inspector. Without `-Papi`, GitHub Packages credentials
 (`GITHUB_ACTOR`, `GITHUB_TOKEN`) are required for the published core artifact.
-Override its version with `-PextensionsCoreVersion=VERSION`. Point `-Pext` at
+Override its version with `-PextensionsCoreVersion=VERSION`; cursor-pagination
+development selects `1.6.0-SNAPSHOT` this way, as does PR CI, while the default
+remains the stable 1.5.0 release. Point `-Pext` at
 any repo of the same `src/{lang}/{name}` shape (the main repo, a fork, or the
 private R18 repo). To avoid retyping, set `grimoireExtDir=…` in
 `gradle.properties` or `~/.gradle/gradle.properties`.
@@ -119,7 +123,7 @@ cookie isolation, HTTP sharing, dynamic UA changes and challenge reporting.
 See [local migration validation](docs/shared-runtime-validation.md) for the
 current evidence and publication boundary.
 
-The JVM CI workflow runs these deterministic tests against the stable published
+The JVM CI workflow runs these deterministic tests against the configured published
 core with a minimal extension directory and controlled test-only discovery
 fixtures. It requires no API checkout or Android SDK. Real extension compilation,
 offline suites and live source compatibility remain separate integration checks.

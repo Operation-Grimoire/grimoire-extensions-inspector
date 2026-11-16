@@ -6,6 +6,7 @@ import io.grimoire.inspector.SourceDiscovery
 import io.grimoire.inspector.engine.ApiError
 import io.grimoire.inspector.engine.Checks
 import io.grimoire.inspector.engine.CookiesReq
+import io.grimoire.inspector.engine.CursorPageReq
 import io.grimoire.inspector.engine.EpubResult
 import io.grimoire.inspector.engine.HostReq
 import io.grimoire.inspector.engine.HostsDto
@@ -93,6 +94,11 @@ fun startServer(port: Int, sources: List<DiscoveredSource>) {
                         val o = resolve(byId) ?: return@post
                         val req = call.receive<UrlReq>()
                         call.guarded { call.respond(o.chapters(req.url, req.page, req.concurrency ?: 1).map { it.toDto() }) }
+                    }
+                    post("/chapters/cursor") {
+                        val o = resolve(byId) ?: return@post
+                        val req = call.receive<CursorPageReq>()
+                        call.guarded { call.respond(o.chapterPage(req.url, req.cursor).toDto()) }
                     }
                     post("/pages") {
                         val o = resolve(byId) ?: return@post

@@ -59,8 +59,8 @@ For clean stdout (no Gradle log noise) when scraping JSON, build a launcher once
 ```
 
 Web JSON API mirrors the CLI: `curl localhost:8080/api/sources`, plus per-source
-`/popular`, `/latest`, `/search`, `/filters`, `/novel`, `/chapters`, `/pages`,
-`/prefs`, `/login`, `/cookies` (GET reads / POST injects / DELETE clears the
+`/popular`, `/latest`, `/search`, `/filters`, `/novel`, `/chapters`,
+`/chapters/cursor`, `/pages`, `/prefs`, `/login`, `/cookies` (GET reads / POST injects / DELETE clears the
 in-memory cookie jar), a global `/api/ua` (GET/POST the User-Agent override), a
 `/api/run` suite, and an `/img` proxy.
 
