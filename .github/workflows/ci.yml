@@ -41,7 +41,7 @@ jobs:
       - name: Test with the published core and controlled source fixtures
         run: |
           mkdir -p "$RUNNER_TEMP/inspector-extensions"
-          "$INSPECTOR_GRADLE_BIN" test -Pext="$RUNNER_TEMP/inspector-extensions" --no-daemon --stacktrace
+          "$INSPECTOR_GRADLE_BIN" test -Pext="$RUNNER_TEMP/inspector-extensions" -PextensionsCoreVersion=1.6.0-SNAPSHOT --no-daemon --stacktrace
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

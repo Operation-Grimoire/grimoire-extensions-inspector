@@ -42,7 +42,9 @@ For local API development, pass `-Papi` pointing to an API checkout containing
 `core/`. Gradle substitutes the core artifact with that project; it never adds
 API source roots to Inspector. Without `-Papi`, GitHub Packages credentials
 (`GITHUB_ACTOR`, `GITHUB_TOKEN`) are required for the published core artifact.
-Override its version with `-PextensionsCoreVersion=VERSION`. Point `-Pext` at
+Override its version with `-PextensionsCoreVersion=VERSION`; cursor-pagination
+development selects `1.6.0-SNAPSHOT` this way, as does PR CI, while the default
+remains the stable 1.5.0 release. Point `-Pext` at
 any repo of the same `src/{lang}/{name}` shape (the main repo, a fork, or the
 private R18 repo). To avoid retyping, set `grimoireExtDir=…` in
 `gradle.properties` or `~/.gradle/gradle.properties`.
